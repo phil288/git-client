@@ -21,6 +21,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { CommitMessageEditor } from '../common/CommitMessageEditor'
 import { FileTree, type TreeFile } from '../common/FileTree'
 import { DiffViewer } from '../diff/LazyDiffViewer'
+import { BranchPicker } from '../branches/BranchPicker'
 import { usePrefs } from '../branches/BranchesPanel'
 import { HunkView } from './HunkView'
 import { aggregate, displayStatus, isStaged, stageState } from './statusModel'
@@ -118,6 +119,8 @@ export function ChangesView({ tab }: { tab: TabRef }) {
   const byPath = useMemo(() => new Map(entries.map((e) => [e.path, e])), [entries])
   const current = selected ? byPath.get(selected) : undefined
   const stagedCount = entries.filter(isStaged).length
+  const stageable = entries.filter((e) => !e.conflicted)
+  const allStaged = aggregate(stageable.map(stageState))
 
   useEffect(() => {
     if (selected && !byPath.has(selected) && status.data) setSelected(null)
@@ -211,6 +214,15 @@ export function ChangesView({ tab }: { tab: TabRef }) {
     <SplitPane direction="vertical" size={msgH} onSizeChange={setMsgH} sizeSecond minSecond={150}>
       <div className="flex h-full min-h-0 flex-col">
         <div className="flex h-8 shrink-0 items-center gap-1 border-b border-border-strong bg-panel px-2">
+          <span className="flex px-1" title="Stage all changes, including unversioned files (git add -A)">
+            <Checkbox
+              checked={allStaged}
+              disabled={stageable.length === 0}
+              onCheckedChange={() => setStaged(stageable.map((e) => e.path), allStaged !== true)}
+              aria-label="Stage all files"
+              data-testid="stage-all"
+            />
+          </span>
           <button className="rounded p-1 text-muted hover:bg-hover hover:text-fg" title="Refresh" onClick={() => void status.refetch()}>
             <RefreshCw className={cn('size-3.5', status.isFetching && 'animate-spin')} />
           </button>
@@ -223,7 +235,8 @@ export function ChangesView({ tab }: { tab: TabRef }) {
           >
             <Undo2 className="size-3.5" /> Rollback…
           </button>
-          <span className="ml-auto text-xs text-muted">
+          <BranchPicker root={root} />
+          <span className="ml-auto shrink-0 text-xs text-muted">
             {stagedCount} of {entries.length} staged
           </span>
         </div>
