@@ -1,9 +1,10 @@
 import { basename, dirname, join } from 'node:path'
 import { existsSync } from 'node:fs'
-import type { MergeMode, WorktreeEntry, WorktreeForce, WorktreeMergeResult } from '@shared/types'
+import type { MergeMode, PendingMerge, WorktreeEntry, WorktreeForce, WorktreeMergeResult } from '@shared/types'
 import { normalizeRepoPath, samePath } from '../paths'
 import { checkRefFormat, merge } from './branches'
 import { AppError } from './errors'
+import { operationState } from './sequencer'
 import type { GitRunner } from './runner'
 
 function assertArg(v: string, what: string): string {
@@ -135,6 +136,35 @@ export async function defaultBranch(runner: GitRunner, root: string): Promise<st
 }
 
 /**
+ * Unfinished merges across all worktrees. While MERGE_HEAD exists the merged
+ * commits are referenced only by the source branch (and MERGE_HEAD, which an
+ * abort drops), so that branch must not be deleted until the merge is committed.
+ */
+export async function pendingMerges(runner: GitRunner, root: string): Promise<PendingMerge[]> {
+  const list = (await listWorktrees(runner, root)).filter((w) => !w.prunable && !w.bare)
+  const out: PendingMerge[] = []
+  for (const w of list) {
+    const mh = await runner.run(['rev-parse', '-q', '--verify', 'MERGE_HEAD^{commit}'], { cwd: w.path, okExitCodes: [0, 1, 128] })
+    if (mh.exitCode !== 0) continue
+    const mergeHead = mh.stdout.trim()
+    // Branches that contain the merged commit but whose commits are not in the target yet.
+    const r = await runner.run(['for-each-ref', '--contains', mergeHead, ...(w.head ? ['--no-merged', w.head] : []), '--format=%(refname:short)', 'refs/heads'], { cwd: w.path })
+    out.push({ path: w.path, into: w.branch, mergeHead, branches: r.stdout.split('\n').filter(Boolean) })
+  }
+  return out
+}
+
+/** Refuses to delete a branch that an unfinished merge depends on (force included). */
+export async function assertNotBeingMerged(runner: GitRunner, root: string, branch: string): Promise<void> {
+  const p = (await pendingMerges(runner, root)).find((m) => m.branches.includes(branch))
+  if (!p) return
+  throw new AppError(
+    `“${branch}” is being merged into ${p.into ?? 'HEAD'} in ${p.path} and that merge is not finished. Commit or abort the merge first: deleting the branch now can lose its commits.`,
+    'INVALID_ARGUMENT'
+  )
+}
+
+/**
  * Merges `source` into `target`. A merge needs a working tree, so it runs in
  * the worktree where `target` is checked out. When `target` is not checked out
  * anywhere, only a fast-forward is possible (done by moving the ref).
@@ -145,7 +175,14 @@ export async function mergeInto(runner: GitRunner, root: string, source: string,
   if (s === t) throw new AppError('Source and target are the same branch.', 'INVALID_ARGUMENT')
   if (mode === 'squash') throw new AppError('Squash merges are not supported here; use Merge from the target worktree.', 'INVALID_ARGUMENT')
   const host = (await listWorktrees(runner, root)).find((w) => w.branch === t && !w.prunable)
-  if (host) return { outcome: await merge(runner, host.path, s, mode), mergedIn: host.path }
+  if (host) {
+    // Never stack a merge on an unfinished operation: git's refusal would look like fresh conflicts.
+    const st = await operationState(runner, host.path)
+    if (st.operation || st.conflicted.length > 0) {
+      throw new AppError(`${st.title || 'An operation with conflicts'} is still in progress in ${host.path}. Resolve and commit it, or abort it, first.`, 'DIRTY')
+    }
+    return { outcome: await merge(runner, host.path, s, mode), mergedIn: host.path }
+  }
 
   const tSha = (await runner.run(['rev-parse', '--verify', `refs/heads/${t}^{commit}`], { cwd: root })).stdout.trim()
   const sSha = (await runner.run(['rev-parse', '--verify', `refs/heads/${s}^{commit}`], { cwd: root })).stdout.trim()

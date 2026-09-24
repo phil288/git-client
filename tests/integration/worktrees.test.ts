@@ -113,4 +113,40 @@ describe('worktrees', () => {
     await wt.removeWorktree(runner, r, p, 0)
     await expect(wt.mergeInto(runner, r, 'side', 'release', 'default')).rejects.toMatchObject({ code: 'INVALID_ARGUMENT' })
   })
+
+  it('a conflicted merge protects the source branch until it is committed or aborted', async () => {
+    const r = initRepo(join(root, 'conflict'))
+    const p = await wt.addWorktree(runner, r, join(root, 'conflict-feat'), 'main', 'feat')
+    for (const n of [1, 2, 3]) commitFile(p, 'README.md', `feature ${n}\n`, `feature ${n}`)
+    commitFile(r, 'README.md', 'main change\n', 'main change')
+    const tip = git(r, 'rev-parse', 'feat').trim()
+
+    const res = await wt.mergeInto(runner, p, 'feat', 'main', 'default')
+    expect(res).toMatchObject({ mergedIn: r, outcome: { status: 'conflicts' } })
+    expect(await wt.pendingMerges(runner, p)).toEqual([{ path: r, into: 'main', mergeHead: tip, branches: ['feat'] }])
+
+    // Deleting the branch (even forced) is refused while the merge needs it.
+    await expect(wt.assertNotBeingMerged(runner, p, 'feat')).rejects.toThrow(/not finished/)
+    await expect(wt.assertNotBeingMerged(runner, p, 'main')).resolves.toBeUndefined()
+    // A second merge is refused instead of being reported as fresh conflicts.
+    await expect(wt.mergeInto(runner, p, 'feat', 'main', 'default')).rejects.toMatchObject({ code: 'DIRTY' })
+
+    // Committed: the merge now contains the commits, the branch is free again.
+    write(r, 'README.md', 'resolved\n')
+    git(r, 'add', 'README.md')
+    git(r, 'commit', '-q', '--no-edit')
+    expect(await wt.pendingMerges(runner, p)).toEqual([])
+    await expect(wt.assertNotBeingMerged(runner, p, 'feat')).resolves.toBeUndefined()
+    expect(git(r, 'merge-base', '--is-ancestor', tip, 'main')).toBe('')
+  })
+
+  it('an aborted merge also releases the branch', async () => {
+    const r = initRepo(join(root, 'abort'))
+    const p = await wt.addWorktree(runner, r, join(root, 'abort-feat'), 'main', 'feat')
+    commitFile(p, 'README.md', 'feature\n', 'feature')
+    commitFile(r, 'README.md', 'main\n', 'main')
+    expect((await wt.mergeInto(runner, p, 'feat', 'main', 'default')).outcome.status).toBe('conflicts')
+    git(r, 'merge', '--abort')
+    expect(await wt.pendingMerges(runner, p)).toEqual([])
+  })
 })

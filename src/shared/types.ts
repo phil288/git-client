@@ -593,6 +593,18 @@ export interface WorktreeEntry {
 /** Number of `-f` flags for `git worktree remove`: 1 discards changes, 2 also overrides a lock. */
 export type WorktreeForce = 0 | 1 | 2
 
+/** An unfinished merge (MERGE_HEAD present) in one of the repository's worktrees. */
+export interface PendingMerge {
+  /** Worktree the merge runs in. */
+  path: string
+  /** Branch checked out there (the merge target). */
+  into: string | null
+  /** Commit being merged. */
+  mergeHead: string
+  /** Local branches containing mergeHead that are not yet merged into `into`: deleting them before the merge is committed can lose commits. */
+  branches: string[]
+}
+
 export interface WorktreeMergeResult {
   outcome: OpOutcome
   /** Worktree the merge ran in (where the target is checked out); null when fast-forwarded by ref update. */

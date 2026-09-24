@@ -13,7 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input, Label } from '@/components/ui/input'
 import { useRefs } from '../log/LogView'
-import { mergeWorktreeFlow, removeWorktreeAndBranchFlow } from './worktreeFlows'
+import { mergeWorktreeFlow, pendingMergeOf, removeWorktreeAndBranchFlow } from './worktreeFlows'
 
 const select = 'h-7 rounded-md border border-border-strong bg-bg px-2 text-[13px]'
 
@@ -27,6 +27,19 @@ export function useWorktrees(root: string) {
 
 export function useDefaultBranch(root: string) {
   return useQuery({ queryKey: ['repo', root, 'defaultBranch'], queryFn: () => api.worktree.defaultBranch(root), staleTime: 60_000 })
+}
+
+/**
+ * Unfinished merges in any worktree. The merge may be resolved from another
+ * tab (another worktree's root), whose refresh does not reach this query, so
+ * poll while one is pending.
+ */
+export function usePendingMerges(root: string) {
+  return useQuery({
+    queryKey: ['repo', root, 'pendingMerges'],
+    queryFn: () => api.worktree.pendingMerges(root),
+    refetchInterval: (q) => ((q.state.data?.length ?? 0) > 0 ? 3000 : false)
+  })
 }
 
 /** Uncommitted-change count of another worktree (quick status works on any path). */
@@ -178,6 +191,8 @@ export function AddWorktreeDialog({ root, start }: { root: string; start?: strin
 export function RemoveWorktreeDialog({ root, worktree: w }: { root: string; worktree: WorktreeEntry }) {
   const changed = useChangedCount(w.path)
   const def = useDefaultBranch(root).data
+  const pendingQ = usePendingMerges(root)
+  const pending = pendingMergeOf(pendingQ.data, w.branch)
   const dirty = (changed ?? 0) > 0
   const needsForce = dirty || w.locked
   const [force, setForce] = useState(false)
@@ -192,6 +207,15 @@ export function RemoveWorktreeDialog({ root, worktree: w }: { root: string; work
           <DialogDescription className="break-all font-mono text-xs">{w.path}</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-2 text-[13px]">
+          {pending && (
+            <div className="flex items-start gap-2 rounded border border-danger/40 bg-danger/10 p-2 text-xs" data-testid="wt-remove-blocked">
+              <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-danger" />
+              <span>
+                ‘{w.branch}’ is being merged into ‘{pending.into ?? 'HEAD'}’ in <span className="font-mono">{pending.path}</span> and that merge is not finished.
+                Resolve and commit it, or abort it, before removing this worktree — deleting the branch now can lose its commits.
+              </span>
+            </div>
+          )}
           {needsForce && (
             <div className="flex items-start gap-2 rounded border border-warning/40 bg-warning/10 p-2 text-xs">
               <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-warning" />
@@ -225,7 +249,7 @@ export function RemoveWorktreeDialog({ root, worktree: w }: { root: string; work
           </Button>
           <Button
             variant="danger"
-            disabled={needsForce && !force}
+            disabled={!!pending || pendingQ.isLoading || (needsForce && !force)}
             data-testid="wt-remove-confirm"
             onClick={() => {
               closeModal()

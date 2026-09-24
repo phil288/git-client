@@ -46,6 +46,7 @@ import type {
   ScanResult,
   SessionState,
   Settings,
+  PendingMerge,
   WorktreeEntry,
   WorktreeForce,
   WorktreeMergeResult
@@ -225,6 +226,8 @@ export interface IpcInvokeMap {
   /** Free sibling path `<main>-<slug>` for a new worktree named after `name`. */
   'worktree:suggestPath': [[root: string, name: string], string]
   'worktree:defaultBranch': [[root: string], string | null]
+  /** Unfinished merges in any worktree of the repo, with the branches they still depend on. */
+  'worktree:pendingMerges': [[root: string], PendingMerge[]]
   /** newBranch null checks out `start`; returns the new worktree's normalised path. */
   'worktree:add': [[root: string, path: string, start: string, newBranch: string | null], string]
   'worktree:remove': [[root: string, path: string, force: WorktreeForce], void]
@@ -405,6 +408,7 @@ const invokeChannelRecord = {
   'worktree:list': true,
   'worktree:suggestPath': true,
   'worktree:defaultBranch': true,
+  'worktree:pendingMerges': true,
   'worktree:add': true,
   'worktree:remove': true,
   'worktree:lock': true,

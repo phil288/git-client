@@ -1,8 +1,8 @@
 import { toast } from 'sonner'
-import { ExternalLink, FolderOpen, FolderTree, GitMerge, Lock, LockOpen, Plus, RefreshCw, Terminal, Trash2 } from 'lucide-react'
-import type { WorktreeEntry } from '@shared/types'
+import { AlertTriangle, ExternalLink, FolderOpen, FolderTree, GitMerge, Lock, LockOpen, Plus, RefreshCw, Terminal, Trash2 } from 'lucide-react'
+import type { PendingMerge, WorktreeEntry } from '@shared/types'
 import { api } from '@/lib/api'
-import { refreshRepo } from '@/lib/gitOps'
+import { refreshRepo, reportOutcome } from '@/lib/gitOps'
 import { run } from '@/lib/notify'
 import { openRepoPath } from '@/lib/repoActions'
 import { cn } from '@/lib/utils'
@@ -11,8 +11,8 @@ import { openModal } from '@/stores/modals'
 import type { TabRef } from '@/stores/tabs'
 import { Button } from '@/components/ui/button'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu'
-import { useDefaultBranch, useWorktrees } from './WorktreeDialogs'
-import { removeWorktreeFlow, samePath } from './worktreeFlows'
+import { useDefaultBranch, usePendingMerges, useWorktrees } from './WorktreeDialogs'
+import { pendingMergeOf, removeWorktreeFlow, samePath } from './worktreeFlows'
 
 function Badge({ children, tone = 'muted' }: { children: React.ReactNode; tone?: 'muted' | 'accent' | 'warning' | 'danger' }) {
   return (
@@ -61,19 +61,34 @@ const forceRemoveFlow = async (root: string, w: WorktreeEntry) => {
   if (ok) await removeWorktreeFlow(root, w.path, 2, false)
 }
 
-/** Actions for one worktree; shared by the row buttons and its context menu. */
-function useActions(root: string, w: WorktreeEntry, def: string | null | undefined) {
-  const canMerge = !!w.branch && !w.prunable && (def ? w.branch !== def : true)
+const abortMergeFlow = async (root: string, p: PendingMerge) => {
+  const ok = await confirm({
+    title: 'Abort merge',
+    message: `Abort the merge into ${p.into ?? 'HEAD'} in ${p.path}? Conflict resolutions made there are discarded; both branches stay as they were before the merge.`,
+    confirmLabel: 'Abort Merge',
+    destructive: true
+  })
+  if (!ok) return
+  run(async () => {
+    reportOutcome(p.path, await api.op.abort(p.path))
+    refreshRepo(root)
+  })
+}
+
+/** Actions for one worktree; shared by the row buttons and its context menu. While its branch is being merged, merge/remove are withheld. */
+function useActions(root: string, w: WorktreeEntry, def: string | null | undefined, pending: PendingMerge | undefined) {
+  const canMerge = !!w.branch && !w.prunable && !pending && (def ? w.branch !== def : true)
   return {
     open: () => void openRepoPath(w.path, 'new-tab'),
     merge: canMerge ? () => openModal({ kind: 'mergeWorktree', root, worktree: w }) : null,
-    remove: w.isMain ? null : w.prunable ? () => pruneFlow(root, 1) : () => openModal({ kind: 'removeWorktree', root, worktree: w }),
-    lock: w.isMain || w.prunable ? null : () => lockFlow(root, w)
+    remove: w.isMain || pending ? null : w.prunable ? () => pruneFlow(root, 1) : () => openModal({ kind: 'removeWorktree', root, worktree: w }),
+    lock: w.isMain || w.prunable ? null : () => lockFlow(root, w),
+    resolve: pending ? () => openModal({ kind: 'conflicts', root: pending.path }) : null
   }
 }
 
-function WorktreeRow({ root, w, def }: { root: string; w: WorktreeEntry; def: string | null | undefined }) {
-  const a = useActions(root, w, def)
+function WorktreeRow({ root, w, def, pending }: { root: string; w: WorktreeEntry; def: string | null | undefined; pending: PendingMerge | undefined }) {
+  const a = useActions(root, w, def, pending)
   const current = samePath(w.path, root)
   return (
     <ContextMenu>
@@ -96,6 +111,11 @@ function WorktreeRow({ root, w, def }: { root: string; w: WorktreeEntry; def: st
                 </span>
               )}
               {w.prunable && <Badge tone="danger">missing</Badge>}
+              {pending && (
+                <span title={`Unfinished merge into ${pending.into ?? 'HEAD'} in ${pending.path}`}>
+                  <Badge tone="danger">merge into {pending.into ?? 'HEAD'} unfinished</Badge>
+                </span>
+              )}
             </div>
             <div className="truncate font-mono text-xs text-muted" title={w.path}>
               {w.path}
@@ -105,6 +125,11 @@ function WorktreeRow({ root, w, def }: { root: string; w: WorktreeEntry; def: st
             {!w.prunable && !current && (
               <Button size="icon-sm" variant="ghost" title="Open in new tab" onClick={a.open} data-testid="wt-open">
                 <ExternalLink />
+              </Button>
+            )}
+            {a.resolve && (
+              <Button size="sm" variant="ghost" className="text-danger" onClick={a.resolve} data-testid="wt-resolve">
+                <AlertTriangle /> Resolve…
               </Button>
             )}
             {a.merge && (
@@ -139,8 +164,15 @@ function WorktreeRow({ root, w, def }: { root: string; w: WorktreeEntry; def: st
         {(a.lock || a.remove) && <ContextMenuSeparator />}
         {a.lock && <ContextMenuItem onSelect={a.lock}>{w.locked ? 'Unlock' : 'Lock…'}</ContextMenuItem>}
         {a.remove && <ContextMenuItem onSelect={a.remove}>{w.prunable ? 'Prune' : 'Remove…'}</ContextMenuItem>}
-        {!w.isMain && !w.prunable && (
+        {!w.isMain && !w.prunable && !pending && (
           <ContextMenuItem onSelect={() => void forceRemoveFlow(root, w)}>Force Remove (-f -f)…</ContextMenuItem>
+        )}
+        {pending && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem onSelect={() => openModal({ kind: 'conflicts', root: pending.path })}>Resolve Merge Conflicts…</ContextMenuItem>
+            <ContextMenuItem onSelect={() => void abortMergeFlow(root, pending)}>Abort Merge into {pending.into ?? 'HEAD'}…</ContextMenuItem>
+          </>
         )}
       </ContextMenuContent>
     </ContextMenu>
@@ -151,9 +183,32 @@ function WorktreeRow({ root, w, def }: { root: string; w: WorktreeEntry; def: st
 export function LinkedWorktreeBar({ root }: { root: string }) {
   const list = useWorktrees(root).data
   const def = useDefaultBranch(root).data
+  const pendingAll = usePendingMerges(root).data
   const w = list?.find((x) => samePath(x.path, root))
   const main = list?.find((x) => x.isMain)
   if (!w || w.isMain) return null
+  const pending = pendingMergeOf(pendingAll, w.branch)
+  if (pending) {
+    return (
+      <div className="flex items-center gap-2 border-b border-border-strong bg-warning/15 px-3 py-1 text-xs" data-testid="linked-worktree-bar" data-pending="true">
+        <AlertTriangle className="size-3.5 shrink-0 text-warning" />
+        <span className="min-w-0">
+          Merge of <span className="font-medium">{w.branch}</span> into <span className="font-medium">{pending.into ?? 'HEAD'}</span> is unfinished in{' '}
+          <span className="font-mono">{pending.path}</span>. In the conflict tool “Theirs” is {w.branch} (this worktree), “Yours” is {pending.into ?? 'HEAD'}.
+        </span>
+        <div className="flex-1" />
+        <Button size="sm" onClick={() => openModal({ kind: 'conflicts', root: pending.path })} data-testid="bar-resolve">
+          Resolve Conflicts…
+        </Button>
+        <Button size="sm" variant="secondary" onClick={() => void openRepoPath(pending.path, 'new-tab')}>
+          Open {pending.into ?? 'target'}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => void abortMergeFlow(root, pending)} data-testid="bar-abort">
+          Abort Merge…
+        </Button>
+      </div>
+    )
+  }
   const canMerge = !!w.branch && w.branch !== def
   return (
     <div className="flex items-center gap-2 border-b border-border-strong bg-panel px-3 py-1 text-xs" data-testid="linked-worktree-bar">
@@ -184,6 +239,7 @@ export function WorktreesView({ tab }: { tab: TabRef }) {
   const root = tab.path
   const q = useWorktrees(root)
   const def = useDefaultBranch(root).data
+  const pendingAll = usePendingMerges(root).data
   const list = q.data ?? []
   const prunable = list.filter((w) => w.prunable).length
 
@@ -213,7 +269,7 @@ export function WorktreesView({ tab }: { tab: TabRef }) {
         {q.isError && <div className="p-6 text-center text-danger">{q.error.message}</div>}
         {list.length === 0 && !q.isError && <div className="p-6 text-center text-muted">{q.isLoading ? 'Loading…' : 'No worktrees'}</div>}
         {list.map((w) => (
-          <WorktreeRow key={w.path} root={root} w={w} def={def} />
+          <WorktreeRow key={w.path} root={root} w={w} def={def} pending={pendingMergeOf(pendingAll, w.branch)} />
         ))}
         {list.length === 1 && (
           <div className="p-6 text-center text-xs text-muted">
