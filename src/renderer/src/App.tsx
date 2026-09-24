@@ -9,14 +9,20 @@ import { shortcutFor } from '@shared/shortcuts'
 import { queryClient } from '@/lib/queryClient'
 import { newRepositoryFlow, openDroppedFiles, openFolderFlow, openRepoPath } from '@/lib/repoActions'
 import { useAppStore } from '@/stores/app'
+import { openModal } from '@/stores/modals'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { checkForUpdatesFlow } from '@/lib/updates'
 import { useOpsStore } from '@/stores/ops'
 import { useRepoEpoch } from '@/stores/repoEpoch'
-import '@/lib/monaco'
-import { persistSession, useTabsStore } from '@/stores/tabs'
+import { useShallow } from 'zustand/react/shallow'
+import { persistSession, selectActiveTabRef, useTabsStore } from '@/stores/tabs'
 import { GitConsole, useConsoleStore } from '@/features/console/GitConsole'
 import { CloneDialog } from '@/features/dialogs/CloneDialog'
 import { DialogHost } from '@/features/dialogs/DialogHost'
 import { ModalHost } from '@/features/dialogs/ModalHost'
+import { MessageDialogHost } from '@/features/rewrite/MessageDialog'
+import '@/lib/rewriteFlows'
+import '@/features/stash/M7Dialogs'
 import { RepoToolbar } from '@/features/repo/RepoToolbar'
 import { ScanDialog } from '@/features/dialogs/ScanDialog'
 import { GitMissingScreen } from '@/features/gitcheck/GitMissingScreen'
@@ -62,6 +68,19 @@ function handleMenuCommand(cmd: MenuCommand): void {
       break
     case 'prev-tab':
       tabs.cycle(-1)
+      break
+    case 'show-commit':
+    case 'show-log':
+      if (tabs.activeId) tabs.setUi(tabs.activeId, { view: cmd === 'show-commit' ? 'commit' : 'log' })
+      break
+    case 'settings':
+      openModal({ kind: 'settings' })
+      break
+    case 'shortcuts':
+      openModal({ kind: 'shortcuts' })
+      break
+    case 'check-updates':
+      void checkForUpdatesFlow(true)
       break
     case 'toggle-console':
       void app.updateSettings({ showConsole: !app.settings.showConsole })
@@ -154,7 +173,7 @@ export function App() {
   const [ready, setReady] = useState(false)
   const gitStatus = useAppStore((s) => s.gitStatus)
   const showConsole = useAppStore((s) => s.settings.showConsole)
-  const activeTab = useTabsStore((s) => s.tabs.find((t) => t.id === s.activeId) ?? null)
+  const activeTab = useTabsStore(useShallow(selectActiveTabRef))
   const dragging = useFolderDrop()
   useMainEvents()
   useShortcuts()
@@ -178,6 +197,7 @@ export function App() {
         useConsoleStore.getState().set(log)
         if (settings.reopenLastSession && status.state === 'ok') useTabsStore.getState().restore(session)
         persistSession() // lives for the whole page lifetime
+        if (settings.checkForUpdates && info.isPackaged) setTimeout(() => void checkForUpdatesFlow(false), 5000)
         setReady(true)
         const pending = await api.app.takePendingOpens()
         for (const req of pending) await openRepoPath(req.path, req.newTab ? 'new-tab' : 'replace')
@@ -203,7 +223,15 @@ export function App() {
             <TabBar />
             {activeTab && <RepoToolbar root={activeTab.path} />}
           </header>
-          <div className="min-h-0 flex-1">{activeTab ? <RepoView key={activeTab.id} tab={activeTab} /> : <WelcomeScreen />}</div>
+          <div className="min-h-0 flex-1">{activeTab ? (
+              <ErrorBoundary key={activeTab.id} label={activeTab.name}>
+                <RepoView tab={activeTab} />
+              </ErrorBoundary>
+            ) : (
+              <ErrorBoundary label="The welcome screen">
+                <WelcomeScreen />
+              </ErrorBoundary>
+            )}</div>
           {showConsole && <GitConsole />}
         </>
       )}
@@ -212,6 +240,7 @@ export function App() {
       <ScanDialog />
       <QuickSwitcher />
       <ModalHost />
+      <MessageDialogHost />
       <DialogHost />
       <Toaster theme="system" position="bottom-right" richColors closeButton offset={36} />
       {dragging && (

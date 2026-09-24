@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Ref } from '@shared/types'
+import type { Commit, Ref, UpdateInfo } from '@shared/types'
 
 /** Parametrised dialogs; one at a time, rendered by <ModalHost/>. */
 export type Modal =
@@ -10,6 +10,18 @@ export type Modal =
   | { kind: 'worktreeDiff'; root: string; rev: string; label: string }
   | { kind: 'upstream'; root: string; branch: string }
   | { kind: 'push'; root: string; branch?: string }
+  | { kind: 'interactiveRebase'; root: string; base: string | null; fromLabel: string }
+  | { kind: 'reset'; root: string; commit: Commit; branch: string | null }
+  | { kind: 'fixupTarget'; root: string; selected: Commit[]; mode: 'fixup' | 'squash'; candidates: Commit[] }
+  | { kind: 'reflog'; root: string }
+  | { kind: 'stashCreate'; root: string }
+  | { kind: 'newTag'; root: string; target: string; label: string }
+  | { kind: 'remotes'; root: string }
+  | { kind: 'conflicts'; root: string }
+  | { kind: 'mergeEditor'; root: string; path: string }
+  | { kind: 'settings' }
+  | { kind: 'shortcuts' }
+  | { kind: 'update'; info: UpdateInfo }
 
 interface ModalState {
   modal: Modal | null

@@ -14,6 +14,19 @@ export interface RepoTab {
 }
 
 /**
+ * The identity of a tab, without its UI state. Views receive this instead of
+ * the full RepoTab so that UI-state writes (selection, pane sizes) do not
+ * re-render the whole tab: those are read per key through useTabUi.
+ */
+export type TabRef = Pick<RepoTab, 'id' | 'path' | 'name'>
+
+/** Selector for the active tab's identity; use with useShallow. */
+export function selectActiveTabRef(s: { tabs: RepoTab[]; activeId: string | null }): TabRef | null {
+  const t = s.tabs.find((x) => x.id === s.activeId)
+  return t ? { id: t.id, path: t.path, name: t.name } : null
+}
+
+/**
  * - 'replace': open in the active tab (repo switcher click)
  * - 'new-tab': open in a new tab and focus it
  * - 'background': open in a new tab, keep the current view (Ctrl/middle click)

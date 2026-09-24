@@ -1,15 +1,21 @@
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, ExternalLink, GitCommitVertical, History, Loader2 } from 'lucide-react'
+import { AlertTriangle, Archive, ExternalLink, FileClock, GitCommitHorizontal, GitCommitVertical, History, Loader2, ScrollText, X } from 'lucide-react'
 import { api } from '@/lib/api'
 import { openRepoPath } from '@/lib/repoActions'
 import { cn } from '@/lib/utils'
 import { useTabUi } from '@/hooks/useTabUi'
-import type { RepoTab } from '@/stores/tabs'
+import type { TabRef } from '@/stores/tabs'
 import { Button } from '@/components/ui/button'
 import { BranchesPanel } from '../branches/BranchesPanel'
+import { ChangesView, useWorkingStatus } from '../changes/ChangesView'
+import { BlameView } from '../history/BlameView'
+import { FileHistoryView } from '../history/FileHistoryView'
+import { StashView } from '../stash/StashView'
+import { CommitMenu } from '../log/CommitMenu'
 import { LogView, useRefs } from '../log/LogView'
+import { OperationBanner } from './OperationBanner'
 
-export type RepoViewKind = 'log'
+export type RepoViewKind = 'log' | 'commit' | 'stash' | 'history' | 'blame'
 
 interface StripeItem {
   id: RepoViewKind
@@ -18,17 +24,27 @@ interface StripeItem {
   shortcut?: string
 }
 
-const STRIPE: StripeItem[] = [{ id: 'log', label: 'Git Log', icon: <History className="size-4" /> }]
+const STRIPE: StripeItem[] = [
+  { id: 'commit', label: 'Commit', icon: <GitCommitHorizontal className="size-4" />, shortcut: 'Ctrl+K' },
+  { id: 'log', label: 'Git Log', icon: <History className="size-4" /> },
+  { id: 'stash', label: 'Stashes', icon: <Archive className="size-4" /> }
+]
 
 export function useRepoInfo(root: string) {
   return useQuery({ queryKey: ['repo', root, 'info'], queryFn: () => api.repo.info(root) })
 }
 
 /** One repository tab: tool-window stripe on the left, the active view on the right. */
-export function RepoView({ tab }: { tab: RepoTab }) {
+export function RepoView({ tab }: { tab: TabRef }) {
   const info = useRepoInfo(tab.path)
   const [view, setView] = useTabUi<RepoViewKind>(tab.id, 'view', 'log')
   const refs = useRefs(tab.path)
+  const [historyPath, setHistoryPath] = useTabUi<string | null>(tab.id, 'historyPath', null)
+  const [blamePath, setBlamePath] = useTabUi<string | null>(tab.id, 'blamePath', null)
+  const [blameRev] = useTabUi<string | null>(tab.id, 'blameRev', null)
+  // Poll only while the Commit view is visible; otherwise refresh on focus / repo events.
+  const status = useWorkingStatus(tab.path, view === 'commit')
+  const changeCount = status.data?.entries.length ?? 0
 
   if (info.isLoading) {
     return (
@@ -59,11 +75,59 @@ export function RepoView({ tab }: { tab: RepoTab }) {
             key={s.id}
             title={s.shortcut ? `${s.label} (${s.shortcut})` : s.label}
             onClick={() => setView(s.id)}
-            className={cn('rounded p-1.5 text-muted hover:bg-hover hover:text-fg', view === s.id && 'bg-hover text-fg')}
+            className={cn('relative rounded p-1.5 text-muted hover:bg-hover hover:text-fg', view === s.id && 'bg-hover text-fg')}
+            data-testid={`stripe-${s.id}`}
           >
             {s.icon}
+            {s.id === 'commit' && changeCount > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 min-w-3.5 rounded-full bg-accent px-0.5 text-center text-[9px] leading-3.5 text-accent-fg">
+                {changeCount > 99 ? '99+' : changeCount}
+              </span>
+            )}
           </button>
         ))}
+        {historyPath && (
+          <div className="group relative">
+            <button
+              title={`History: ${historyPath}`}
+              onClick={() => setView('history')}
+              className={cn('rounded p-1.5 text-muted hover:bg-hover hover:text-fg', view === 'history' && 'bg-hover text-fg')}
+            >
+              <FileClock className="size-4" />
+            </button>
+            <button
+              className="absolute -right-1 -top-1 hidden rounded-full bg-panel-2 p-px group-hover:block"
+              title="Close history"
+              onClick={() => {
+                setHistoryPath(null)
+                if (view === 'history') setView('log')
+              }}
+            >
+              <X className="size-2.5" />
+            </button>
+          </div>
+        )}
+        {blamePath && (
+          <div className="group relative">
+            <button
+              title={`Annotate: ${blamePath}`}
+              onClick={() => setView('blame')}
+              className={cn('rounded p-1.5 text-muted hover:bg-hover hover:text-fg', view === 'blame' && 'bg-hover text-fg')}
+            >
+              <ScrollText className="size-4" />
+            </button>
+            <button
+              className="absolute -right-1 -top-1 hidden rounded-full bg-panel-2 p-px group-hover:block"
+              title="Close annotate"
+              onClick={() => {
+                setBlamePath(null)
+                if (view === 'blame') setView('log')
+              }}
+            >
+              <X className="size-2.5" />
+            </button>
+          </div>
+        )}
       </nav>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {r.superproject && (
@@ -75,7 +139,12 @@ export function RepoView({ tab }: { tab: RepoTab }) {
             </button>
           </div>
         )}
+        <OperationBanner root={tab.path} />
         <div className="min-h-0 flex-1" data-testid="repo-branch" data-branch={r.branch ?? ''}>
+          {view === 'commit' && <ChangesView tab={tab} />}
+          {view === 'stash' && <StashView tab={tab} />}
+          {view === 'history' && historyPath && <FileHistoryView key={historyPath} tab={tab} path={historyPath} />}
+          {view === 'blame' && blamePath && <BlameView key={`${blamePath}@${blameRev}`} tab={tab} path={blamePath} rev={blameRev} />}
           {view === 'log' && (
             <LogView
               tab={tab}
@@ -83,6 +152,16 @@ export function RepoView({ tab }: { tab: RepoTab }) {
               detached={r.detached}
               sidebar={({ query, setQuery }) => (
                 <BranchesPanel tab={tab} refs={refs.data ?? []} currentBranch={r.branch} query={query} setQuery={setQuery} />
+              )}
+              renderMenu={(selected, { openDiff, branchCommits }) => (
+                <CommitMenu
+                  root={tab.path}
+                  selected={selected}
+                  headSha={r.headSha}
+                  currentBranch={r.branch}
+                  branchCommits={branchCommits}
+                  openDiff={openDiff}
+                />
               )}
             />
           )}

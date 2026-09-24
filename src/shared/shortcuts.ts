@@ -30,6 +30,8 @@ export function shortcutFor(e: KeyLike, isMac: boolean): MenuCommand | null {
   if (key === 'o') return 'open-folder'
   if (key === 'w') return 'close-tab'
   if (key === 'e') return 'quick-switcher'
+  if (key === 'k') return 'show-commit'
+  if (key === ',') return 'settings'
   if (/^[1-9]$/.test(key)) return { type: 'goto-tab', index: Number(key) - 1 }
   return null
 }

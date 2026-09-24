@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { Trash2, X } from 'lucide-react'
 import type { CommandLogEntry } from '@shared/types'
 import { baseName, formatCommand } from '@shared/display'
@@ -21,7 +21,7 @@ export const useConsoleStore = create<ConsoleState>((set, get) => ({
   entries: [],
   upsert(e) {
     const entries = get().entries
-    const idx = entries.findIndex((x) => x.id === e.id)
+    const idx = entries.findLastIndex((x) => x.id === e.id)
     if (idx >= 0) {
       const next = [...entries]
       next[idx] = e
@@ -39,7 +39,8 @@ function time(ts: number): string {
   return new Date(ts).toLocaleTimeString(undefined, { hour12: false })
 }
 
-function Entry({ e }: { e: CommandLogEntry }) {
+/** Memoized: a new command must not re-render the up to 1,000 entries already shown. */
+const Entry = memo(function Entry({ e }: { e: CommandLogEntry }) {
   const failed = !e.running && (e.cancelled || e.exitCode !== 0)
   const [open, setOpen] = useState(false)
   const hasStderr = e.stderr.trim() !== ''
@@ -57,7 +58,7 @@ function Entry({ e }: { e: CommandLogEntry }) {
       {open && <pre className="selectable ml-16 whitespace-pre-wrap break-all text-muted">{e.stderr}</pre>}
     </div>
   )
-}
+})
 
 /** JetBrains-style Console tab: every git command, its duration, exit code and stderr. */
 export function GitConsole() {
@@ -67,14 +68,16 @@ export function GitConsole() {
   const updateSettings = useAppStore((s) => s.updateSettings)
   const activePath = useTabsStore((s) => s.tabs.find((t) => t.id === s.activeId)?.path ?? null)
   const [onlyCurrent, setOnlyCurrent] = useState(false)
+  const [showBackground, setShowBackground] = useState(false)
   const [dragHeight, setDragHeight] = useState<number | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const stick = useRef(true)
 
   const shown = useMemo(() => {
-    const list = onlyCurrent && activePath ? entries.filter((e) => e.cwd === activePath) : entries
+    let list = onlyCurrent && activePath ? entries.filter((e) => e.cwd === activePath) : entries
+    if (!showBackground) list = list.filter((e) => !e.background || (!e.running && e.exitCode !== 0))
     return list.slice(-MAX_SHOWN)
-  }, [entries, onlyCurrent, activePath])
+  }, [entries, onlyCurrent, activePath, showBackground])
 
   useEffect(() => {
     const el = scrollRef.current
@@ -108,6 +111,10 @@ export function GitConsole() {
         <label className="flex items-center gap-1 text-muted">
           <input type="checkbox" checked={onlyCurrent} onChange={(e) => setOnlyCurrent(e.target.checked)} />
           Current repository only
+        </label>
+        <label className="flex items-center gap-1 text-muted" title="Automatic status refreshes (failures are always shown)">
+          <input type="checkbox" checked={showBackground} onChange={(e) => setShowBackground(e.target.checked)} />
+          Show background refreshes
         </label>
         <button
           className="ml-auto rounded p-1 text-muted hover:bg-hover hover:text-fg"

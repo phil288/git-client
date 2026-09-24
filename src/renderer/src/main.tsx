@@ -12,3 +12,10 @@ createRoot(document.getElementById('root')!).render(
     </QueryClientProvider>
   </StrictMode>
 )
+
+// Last-resort error reporting: unexpected errors become toasts instead of silent failures.
+import { notifyError } from '@/lib/notify'
+window.addEventListener('unhandledrejection', (e) => notifyError(e.reason, 'Unexpected error'))
+window.addEventListener('error', (e) => {
+  if (e.error) notifyError(e.error, 'Unexpected error')
+})

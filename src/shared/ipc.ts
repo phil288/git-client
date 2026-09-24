@@ -3,7 +3,22 @@ import type {
   CommitDetails,
   ContainingRefs,
   Commit,
+  BackupEntry,
+  BlameLine,
   CompareResult,
+  ConflictState,
+  ConflictVersions,
+  MergePreview,
+  FileHistoryEntry,
+  StashEntry,
+  FileHunks,
+  WorkingStatus,
+  OperationState,
+  ReflogEntry,
+  ResetMode,
+  RewriteCheck,
+  RewritePlan,
+  UpdateInfo,
   FileChange,
   MergeMode,
   OpOutcome,
@@ -131,6 +146,7 @@ export interface IpcInvokeMap {
   'branch:delete': [[root: string, name: string, force: boolean], string]
   'branch:restore': [[root: string, name: string, sha: string], void]
   'branch:deleteRemote': [[root: string, remote: string, branch: string, opId: string], void]
+  'branch:deleteRemoteMany': [[root: string, remote: string, branches: string[], opId: string], void]
   'branch:setUpstream': [[root: string, branch: string, upstream: string | null], void]
   'branch:merge': [[root: string, ref: string, mode: MergeMode], OpOutcome]
   'branch:rebase': [[root: string, onto: string, branch: string | null], OpOutcome]
@@ -143,6 +159,86 @@ export interface IpcInvokeMap {
   'remote:outgoing': [[root: string, branch: string, remote: string, remoteBranch: string], Commit[]]
   'prefs:get': [[root: string], RepoPrefs]
   'prefs:update': [[root: string, patch: Partial<RepoPrefs>], RepoPrefs]
+
+  // M5 — history rewriting & in-progress operations
+  /** Commits base..HEAD oldest first, with full messages (base null = from the root). */
+  'rewrite:commits': [[root: string, base: string | null], (Commit & { message: string })[]]
+  'rewrite:check': [[root: string, base: string | null, hashes: string[]], RewriteCheck]
+  'rewrite:run': [[root: string, plan: RewritePlan, operation: string], OpOutcome]
+  'rewrite:amendHead': [[root: string, message: string], void]
+  'rewrite:reset': [[root: string, target: string, mode: ResetMode], void]
+  'rewrite:undoCommit': [[root: string], void]
+  'rewrite:cherryPick': [[root: string, hashes: string[]], OpOutcome]
+  'rewrite:revert': [[root: string, hashes: string[]], OpOutcome]
+  'rewrite:patch': [[root: string, hashes: string[]], string]
+  'rewrite:reflog': [[root: string], ReflogEntry[]]
+  'rewrite:backups': [[root: string], BackupEntry[]]
+  'rewrite:undoLast': [[root: string, hard: boolean], { ref: string; operation: string }]
+  'op:state': [[root: string], OperationState]
+  'op:continue': [[root: string, message: string | null], OpOutcome]
+  'op:skip': [[root: string], OpOutcome]
+  'op:abort': [[root: string], OpOutcome]
+  /** Save dialog + write; returns the chosen path or null. */
+  'dialog:saveText': [[title: string, defaultName: string, content: string], string | null]
+
+  // M6 — local changes & commit
+  'wt:status': [[root: string], WorkingStatus]
+  'wt:hunks': [[root: string, path: string], FileHunks]
+  'wt:stage': [[root: string, paths: string[]], void]
+  'wt:unstage': [[root: string, paths: string[]], void]
+  'wt:discard': [[root: string, paths: string[]], void]
+  'wt:stageHunks': [[root: string, path: string, hunkIds: string[]], void]
+  'wt:unstageHunks': [[root: string, path: string, hunkIds: string[]], void]
+  'wt:discardHunks': [[root: string, path: string, hunkIds: string[]], void]
+  /** Commits the index; returns the new HEAD. Records the message in recent messages. */
+  'wt:commit': [[root: string, message: string, options: { amend: boolean; signOff: boolean }], string]
+  'wt:lastMessage': [[root: string], string]
+
+  // M7 — stash, history, blame, tags, remotes
+  'stash:list': [[root: string], StashEntry[]]
+  'stash:files': [[root: string, index: number], { files: FileChange[]; untracked: FileChange[]; base: string; hash: string; untrackedCommit: string | null }]
+  'stash:push': [[root: string, message: string, includeUntracked: boolean, keepIndex: boolean], void]
+  'stash:apply': [[root: string, index: number, reinstateIndex: boolean], OpOutcome]
+  'stash:pop': [[root: string, index: number, reinstateIndex: boolean], OpOutcome]
+  'stash:drop': [[root: string, index: number], void]
+  'stash:branch': [[root: string, name: string, index: number], void]
+  'history:file': [[root: string, path: string], FileHistoryEntry[]]
+  'history:blame': [[root: string, path: string, rev: string | null], BlameLine[]]
+  'tag:create': [[root: string, name: string, target: string, message: string | null], void]
+  'tag:delete': [[root: string, name: string], void]
+  'tag:push': [[root: string, remote: string, name: string, opId: string], void]
+  'tag:deleteRemote': [[root: string, remote: string, name: string, opId: string], void]
+  'remote:add': [[root: string, name: string, url: string], void]
+  'remote:setUrl': [[root: string, name: string, url: string, push: boolean], void]
+  'remote:remove': [[root: string, name: string], void]
+  'remote:rename': [[root: string, oldName: string, newName: string], void]
+  'remote:prune': [[root: string, name: string, opId: string], void]
+
+  // M8 — conflicts
+  'conflicts:state': [[root: string], ConflictState]
+  'conflicts:versions': [[root: string, path: string], ConflictVersions]
+  'conflicts:acceptSide': [[root: string, paths: string[], side: 'yours' | 'theirs'], void]
+  'conflicts:resolveSubmodule': [[root: string, path: string, sha: string], void]
+  'conflicts:markResolved': [[root: string, paths: string[]], void]
+  'conflicts:delete': [[root: string, paths: string[]], void]
+  /** Writes the merge result in the file's original encoding and stages it. */
+  'conflicts:save': [[root: string, path: string, text: string, encoding: FileContent['encoding']], void]
+  'conflicts:autoResolve': [[root: string, paths: string[] | null], { resolved: string[]; remaining: { path: string; conflicts: number }[] }]
+  'conflicts:mergeTool': [[root: string, path: string], void]
+  'conflicts:preview': [[root: string, ref: string], MergePreview]
+  'conflicts:getRerere': [[root: string], boolean]
+  'conflicts:setRerere': [[root: string, enabled: boolean], void]
+  'conflicts:configuredTool': [[root: string], string | null]
+
+  // M9 — OS integration
+  'os:integration': [[], { platform: string; explorerMenu: boolean | null; fileManagerScripts: { nautilus: boolean | null; nemo: boolean | null } | null }]
+  'os:setExplorerMenu': [[enable: boolean], void]
+  'os:setFileManagerScripts': [[enable: boolean], void]
+
+  // M10 — updates
+  'update:check': [[], UpdateInfo]
+  /** Windows only: download the update and restart into it. */
+  'update:install': [[opId: string], void]
 }
 
 /** Main -> renderer push events. */
@@ -228,6 +324,7 @@ const invokeChannelRecord = {
   'branch:delete': true,
   'branch:restore': true,
   'branch:deleteRemote': true,
+  'branch:deleteRemoteMany': true,
   'branch:setUpstream': true,
   'branch:merge': true,
   'branch:rebase': true,
@@ -239,7 +336,70 @@ const invokeChannelRecord = {
   'remote:push': true,
   'remote:outgoing': true,
   'prefs:get': true,
-  'prefs:update': true
+  'prefs:update': true,
+  'rewrite:commits': true,
+  'rewrite:check': true,
+  'rewrite:run': true,
+  'rewrite:amendHead': true,
+  'rewrite:reset': true,
+  'rewrite:undoCommit': true,
+  'rewrite:cherryPick': true,
+  'rewrite:revert': true,
+  'rewrite:patch': true,
+  'rewrite:reflog': true,
+  'rewrite:backups': true,
+  'rewrite:undoLast': true,
+  'op:state': true,
+  'op:continue': true,
+  'op:skip': true,
+  'op:abort': true,
+  'dialog:saveText': true,
+  'wt:status': true,
+  'wt:hunks': true,
+  'wt:stage': true,
+  'wt:unstage': true,
+  'wt:discard': true,
+  'wt:stageHunks': true,
+  'wt:unstageHunks': true,
+  'wt:discardHunks': true,
+  'wt:commit': true,
+  'wt:lastMessage': true,
+  'stash:list': true,
+  'stash:files': true,
+  'stash:push': true,
+  'stash:apply': true,
+  'stash:pop': true,
+  'stash:drop': true,
+  'stash:branch': true,
+  'history:file': true,
+  'history:blame': true,
+  'tag:create': true,
+  'tag:delete': true,
+  'tag:push': true,
+  'tag:deleteRemote': true,
+  'remote:add': true,
+  'remote:setUrl': true,
+  'remote:remove': true,
+  'remote:rename': true,
+  'remote:prune': true,
+  'conflicts:state': true,
+  'conflicts:versions': true,
+  'conflicts:acceptSide': true,
+  'conflicts:resolveSubmodule': true,
+  'conflicts:markResolved': true,
+  'conflicts:delete': true,
+  'conflicts:save': true,
+  'conflicts:autoResolve': true,
+  'conflicts:mergeTool': true,
+  'conflicts:preview': true,
+  'conflicts:getRerere': true,
+  'conflicts:setRerere': true,
+  'conflicts:configuredTool': true,
+  'os:integration': true,
+  'os:setExplorerMenu': true,
+  'os:setFileManagerScripts': true,
+  'update:check': true,
+  'update:install': true
 } as const satisfies Record<InvokeChannel, true>
 
 const eventChannelRecord = {

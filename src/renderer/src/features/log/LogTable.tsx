@@ -1,6 +1,7 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from 'react'
+import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import type { Commit, Ref } from '@shared/types'
+import type { GraphRow } from '@shared/graph'
+import type { Commit, Ref, Settings } from '@shared/types'
 import { absoluteDate, formatDate, shortHash } from '@/lib/format'
 import { cn, isPrimaryModifier } from '@/lib/utils'
 import { useAppStore } from '@/stores/app'
@@ -18,6 +19,82 @@ export interface Selection {
 }
 
 export const EMPTY_SELECTION: Selection = { hashes: [], focus: null, anchor: null }
+
+const NO_REFS: Ref[] = []
+
+interface RowProps {
+  commit: Commit
+  row: GraphRow | undefined
+  top: number
+  refs: Ref[]
+  selected: boolean
+  focused: boolean
+  highlighted: boolean
+  graphWidth: number
+  isHead: boolean
+  detached: boolean
+  dateFormat: Settings['dateFormat']
+  onMouseDown(c: Commit, e: React.MouseEvent): void
+  onDoubleClick(c: Commit): void
+}
+
+/**
+ * One log row. Memoized so that moving the selection or scrolling re-renders
+ * only the rows whose props changed, not every visible row.
+ */
+const LogRow = memo(function LogRow({
+  commit: c,
+  row,
+  top,
+  refs,
+  selected: isSel,
+  focused,
+  highlighted,
+  graphWidth,
+  isHead,
+  detached,
+  dateFormat,
+  onMouseDown,
+  onDoubleClick
+}: RowProps) {
+  const dim = !c.onCurrentBranch && !isSel
+  return (
+    <div
+      data-hash={c.hash}
+      data-testid="log-row"
+      onMouseDown={(e) => onMouseDown(c, e)}
+      onDoubleClick={() => onDoubleClick(c)}
+      className={cn(
+        'absolute left-0 right-0 flex cursor-default items-center text-[13px]',
+        isSel ? 'bg-selected' : 'hover:bg-hover',
+        focused && 'outline outline-1 -outline-offset-1 outline-accent/60'
+      )}
+      style={{ top, height: ROW_H }}
+    >
+      <div style={{ width: graphWidth * LANE_W + 8 }} className="shrink-0 overflow-hidden pl-1">
+        {row && <GraphCell row={row} width={graphWidth} isMerge={c.parents.length > 1} isHead={isHead} />}
+      </div>
+      <div className={cn('flex min-w-0 flex-1 items-center gap-2 px-1', dim && 'opacity-55')}>
+        <span className={cn('truncate', highlighted && 'rounded bg-warning/25')}>{c.subject}</span>
+        <span className="ml-auto" />
+        <RefLabels refs={refs} detachedHead={detached && isHead} />
+      </div>
+      <div className={cn('w-36 shrink-0 truncate px-2 text-muted', dim && 'opacity-55')} title={`${c.authorName} <${c.authorEmail}>`}>
+        {c.authorName}
+      </div>
+      <div
+        className={cn('w-32 shrink-0 truncate px-2 text-muted', dim && 'opacity-55')}
+        // The full date is only needed for the tooltip: format it on hover, not on every render.
+        onMouseEnter={(e) => {
+          if (!e.currentTarget.title) e.currentTarget.title = absoluteDate(c.authorTime)
+        }}
+      >
+        {formatDate(c.authorTime, dateFormat)}
+      </div>
+      <div className="w-20 shrink-0 px-2 font-mono text-xs text-muted">{shortHash(c.hash)}</div>
+    </div>
+  )
+})
 
 export interface LogTableHandle {
   scrollTo(hash: string): void
@@ -96,6 +173,16 @@ export const LogTable = forwardRef<LogTableHandle, Props>(function LogTable(
     [selection.anchor, model, commits, selected, onSelectionChange]
   )
 
+  // Rows are memoized, so their handlers must be stable: route through refs.
+  const selectRef = useRef(select)
+  selectRef.current = select
+  const activateRef = useRef(onActivate)
+  activateRef.current = onActivate
+  const onRowMouseDown = useCallback((c: Commit, e: React.MouseEvent) => {
+    if (e.button === 0) selectRef.current(c.hash, e)
+  }, [])
+  const onRowDoubleClick = useCallback((c: Commit) => activateRef.current?.(c), [])
+
   const move = (target: number, e: React.KeyboardEvent) => {
     const t = Math.max(0, Math.min(commits.length - 1, target))
     const c = commits[t]
@@ -120,7 +207,15 @@ export const LogTable = forwardRef<LogTableHandle, Props>(function LogTable(
       case 'Home':
         return move(0, e)
       case 'End':
-        return move(commits.length - 1, e)
+        e.preventDefault()
+        if (model.done) return move(commits.length - 1, e)
+        void model.loadRest().then(() => {
+          const lastC = model.commits[model.commits.length - 1]
+          if (!lastC) return
+          select(lastC.hash, { shiftKey: false, ctrlKey: false, metaKey: false })
+          virt.scrollToIndex(model.commits.length - 1, { align: 'end' })
+        })
+        return
       case 'ArrowLeft': {
         // Go to (first) parent.
         const p = commits[cur]?.parents[0]
@@ -171,43 +266,23 @@ export const LogTable = forwardRef<LogTableHandle, Props>(function LogTable(
             <div style={{ height: virt.getTotalSize(), position: 'relative' }}>
               {items.map((vi) => {
                 const c = commits[vi.index]!
-                const row = model.rows[vi.index]
-                const refs = refsByHash.get(c.hash) ?? []
-                const isSel = selected.has(c.hash)
-                const dim = !c.onCurrentBranch && !isSel
-                const hl = highlight?.(c)
                 return (
-                  <div
+                  <LogRow
                     key={c.hash}
-                    data-hash={c.hash}
-                    data-testid="log-row"
-                    onMouseDown={(e) => e.button === 0 && select(c.hash, e)}
-                    onDoubleClick={() => onActivate?.(c)}
-                    className={cn(
-                      'absolute left-0 right-0 flex cursor-default items-center text-[13px]',
-                      isSel ? 'bg-selected' : 'hover:bg-hover',
-                      selection.focus === c.hash && 'outline outline-1 -outline-offset-1 outline-accent/60'
-                    )}
-                    style={{ top: vi.start, height: ROW_H }}
-                  >
-                    <div style={{ width: graphWidth * LANE_W + 8 }} className="shrink-0 overflow-hidden pl-1">
-                      {showGraph && row && (
-                        <GraphCell row={row} width={graphWidth} isMerge={c.parents.length > 1} isHead={c.hash === headSha} />
-                      )}
-                    </div>
-                    <div className={cn('flex min-w-0 flex-1 items-center gap-2 px-1', dim && 'opacity-55')}>
-                      <span className={cn('truncate', hl && 'rounded bg-warning/25')}>{c.subject}</span>
-                      <span className="ml-auto" />
-                      <RefLabels refs={refs} detachedHead={detached && c.hash === headSha} />
-                    </div>
-                    <div className={cn('w-36 shrink-0 truncate px-2 text-muted', dim && 'opacity-55')} title={`${c.authorName} <${c.authorEmail}>`}>
-                      {c.authorName}
-                    </div>
-                    <div className={cn('w-32 shrink-0 truncate px-2 text-muted', dim && 'opacity-55')} title={absoluteDate(c.authorTime)}>
-                      {formatDate(c.authorTime, dateFormat)}
-                    </div>
-                    <div className="w-20 shrink-0 px-2 font-mono text-xs text-muted">{shortHash(c.hash)}</div>
-                  </div>
+                    commit={c}
+                    row={showGraph ? model.rows[vi.index] : undefined}
+                    top={vi.start}
+                    refs={refsByHash.get(c.hash) ?? NO_REFS}
+                    selected={selected.has(c.hash)}
+                    focused={selection.focus === c.hash}
+                    highlighted={highlight?.(c) ?? false}
+                    graphWidth={graphWidth}
+                    isHead={c.hash === headSha}
+                    detached={detached}
+                    dateFormat={dateFormat}
+                    onMouseDown={onRowMouseDown}
+                    onDoubleClick={onRowDoubleClick}
+                  />
                 )
               })}
             </div>

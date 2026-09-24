@@ -14,7 +14,7 @@ export class CommandLogger extends EventEmitter<{ entry: [CommandLogEntry] }> {
   private entries: CommandLogEntry[] = []
   private nextId = 1
 
-  start(cwd: string | null, args: readonly string[]): CommandLogEntry {
+  start(cwd: string | null, args: readonly string[], background = false): CommandLogEntry {
     const entry: CommandLogEntry = {
       id: this.nextId++,
       cwd,
@@ -24,7 +24,8 @@ export class CommandLogger extends EventEmitter<{ entry: [CommandLogEntry] }> {
       exitCode: null,
       stderr: '',
       cancelled: false,
-      running: true
+      running: true,
+      background
     }
     this.push(entry)
     return entry

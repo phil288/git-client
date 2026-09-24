@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { FileChange } from '@shared/types'
 import { SplitPane } from '@/components/SplitPane'
-import { DiffViewer } from '../diff/DiffViewer'
+import { DiffViewer } from '../diff/LazyDiffViewer'
 import { FileTree } from './FileTree'
 
 /** File list on the left, diff of the selected file on the right. */

@@ -5,7 +5,8 @@ import { api } from '@/lib/api'
 import { openFolderFlow, openRepoPath } from '@/lib/repoActions'
 import { isPrimaryModifier } from '@/lib/utils'
 import { useAppStore } from '@/stores/app'
-import { useTabsStore } from '@/stores/tabs'
+import { useShallow } from 'zustand/react/shallow'
+import { selectActiveTabRef, useTabsStore } from '@/stores/tabs'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { RepoAvatar } from '../welcome/RepoAvatar'
 import { RepoList } from './RepoList'
@@ -13,7 +14,7 @@ import { RepoList } from './RepoList'
 /** Title-bar project widget: current repo + branch; opens a searchable recent list. */
 export function RepoSwitcher() {
   const [open, setOpen] = useState(false)
-  const active = useTabsStore((s) => s.tabs.find((t) => t.id === s.activeId) ?? null)
+  const active = useTabsStore(useShallow(selectActiveTabRef))
   const showWelcome = useTabsStore((s) => s.showWelcome)
   const openDialog = useAppStore((s) => s.openDialog)
   const info = useQuery({

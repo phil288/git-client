@@ -79,5 +79,7 @@ nsis:
   createStartMenuShortcut: true
   shortcutName: GitClient
   deleteAppDataOnUninstall: false
+  # Per-user PATH entry + Explorer "Open in GitClient" (see the file for details).
+  include: build/installer.nsh
 
 publish: null

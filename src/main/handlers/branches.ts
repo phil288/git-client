@@ -92,6 +92,15 @@ export function registerBranchHandlers(ctx: MainContext): void {
       )
     )
   })
+  handle('branch:deleteRemoteMany', (_e, r0, remote, bs, opId) => {
+    const r = root(r0)
+    const list = assert.stringArray(bs, 'branches')
+    return mutate(r, () =>
+      ctx.ops.run(assert.nonEmptyString(opId, 'opId'), `Deleting ${list.length} branches on ${remote}`, true, (op) =>
+        br.deleteRemoteBranches(runner, r, assert.nonEmptyString(remote, 'remote'), list, op.progress)
+      )
+    )
+  })
   handle('branch:setUpstream', (_e, r0, b, up) => {
     const r = root(r0)
     return mutate(r, () => br.setUpstream(runner, r, assert.nonEmptyString(b, 'branch'), assert.nullableString(up, 'upstream')))

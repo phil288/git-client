@@ -159,8 +159,8 @@ export function LogToolbar({ root, query, setQuery, goTo, refs, authors }: Props
   }
 
   return (
-    <div className="flex h-8 shrink-0 items-center gap-1 border-b border-border-strong bg-panel px-2" data-testid="log-toolbar">
-      <div className="relative w-64 shrink-0">
+    <div className="flex h-8 shrink-0 items-center gap-1 overflow-hidden whitespace-nowrap border-b border-border-strong bg-panel px-2" data-testid="log-toolbar">
+      <div className="relative w-56 min-w-36 shrink">
         <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted" />
         <Input
           ref={searchRef}
@@ -317,7 +317,7 @@ export function LogToolbar({ root, query, setQuery, goTo, refs, authors }: Props
 
       {anyFilter && (
         <button
-          className="ml-1 text-xs text-accent hover:underline"
+          className="ml-1 shrink-0 text-xs text-accent hover:underline"
           onClick={() => {
             setText('')
             setQuery({ revs: [] })
@@ -326,7 +326,7 @@ export function LogToolbar({ root, query, setQuery, goTo, refs, authors }: Props
           Clear filters
         </button>
       )}
-      <button className="ml-auto flex items-center gap-1 rounded px-2 py-0.5 text-xs text-muted hover:bg-hover hover:text-fg" title="Go to Hash/Branch/Tag (Ctrl+G)" onClick={() => void goToPrompt()}>
+      <button className="ml-auto flex shrink-0 items-center gap-1 rounded px-2 py-0.5 text-xs text-muted hover:bg-hover hover:text-fg" title="Go to Hash/Branch/Tag (Ctrl+G)" onClick={() => void goToPrompt()}>
         <Crosshair className="size-3.5" /> Go to
       </button>
     </div>

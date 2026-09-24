@@ -127,7 +127,7 @@ export class GitService {
       try {
         const r = await this.runner.run(
           ['--no-optional-locks', 'status', '--porcelain=v2', '--branch', '-z', '--untracked-files=normal'],
-          { cwd: path }
+          { cwd: path, quiet: true }
         )
         const s = parseStatusV2(r.stdout)
         return {

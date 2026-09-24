@@ -173,6 +173,11 @@ describe('remotes: fetch / pull / push / rename remote branch / delete remote', 
     await br.deleteRemoteBranch(runner, b, 'origin', 'new-name')
     expect(git(origin, 'for-each-ref', '--format=%(refname:short)', 'refs/heads').trim()).toBe('main')
 
+    // Several remote branches in one push.
+    for (const n of ['x1', 'x2', 'x3']) git(b, 'push', '-q', 'origin', `HEAD:refs/heads/${n}`)
+    await br.deleteRemoteBranches(runner, b, 'origin', ['x1', 'x3'])
+    expect(git(origin, 'for-each-ref', '--format=%(refname:short)', 'refs/heads').trim().split('\n').sort()).toEqual(['main', 'x2'])
+
     const remotes = await br.listRemotes(runner, b)
     expect(remotes).toEqual([{ name: 'origin', fetchUrl: origin, pushUrl: origin }])
     await br.setUpstream(runner, b, 'main', null)

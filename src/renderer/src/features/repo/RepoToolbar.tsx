@@ -1,6 +1,11 @@
-import { ArrowDownToLine, ArrowUpFromLine, RefreshCw } from 'lucide-react'
+import { ArrowDownToLine, ArrowUpFromLine, ChevronDown, RefreshCw } from 'lucide-react'
 import { fetchFlow, pullFlow } from '@/lib/gitOps'
+import { undoLastFlow } from '@/lib/rewriteFlows'
 import { openModal } from '@/stores/modals'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+
+/** Extra entries contributed by later features (stash, remotes…). */
+export const gitMenuExtras: { items: ((root: string) => React.ReactNode)[] } = { items: [] }
 
 /** Fetch / Pull / Push for the active repository (title-bar area, like the IDE toolbar). */
 export function RepoToolbar({ root }: { root: string }) {
@@ -16,6 +21,21 @@ export function RepoToolbar({ root }: { root: string }) {
       <button className={btn} title="Push…" onClick={() => openModal({ kind: 'push', root })} data-testid="toolbar-push">
         <ArrowUpFromLine className="size-3.5" /> Push
       </button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button className={btn} data-testid="git-menu">
+            Git <ChevronDown className="size-3" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-56">
+          <DropdownMenuItem onSelect={() => void undoLastFlow(root)}>Undo Last Operation</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => openModal({ kind: 'reflog', root })}>Reflog &amp; Backups…</DropdownMenuItem>
+          <DropdownMenuSeparator />
+          {gitMenuExtras.items.map((render, i) => (
+            <span key={i}>{render(root)}</span>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   )
 }

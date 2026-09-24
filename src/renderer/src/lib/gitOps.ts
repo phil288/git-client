@@ -202,3 +202,86 @@ export async function rebaseFlow(root: string, onto: string, branch: string | nu
     notifyError(err, 'Rebase failed')
   }
 }
+
+/**
+ * Deletes several branches at once. One confirmation up front; local branches
+ * are safe-deleted, unmerged ones are force-deleted only after a second,
+ * explicit confirmation; remote branches are deleted with one push per remote.
+ * A single "Restore" toast brings back all deleted local branches.
+ */
+export async function deleteBranchesFlow(root: string, locals: string[], remotes: { remote: string; branch: string }[]): Promise<void> {
+  const total = locals.length + remotes.length
+  if (total === 0) return
+  const names = [...locals, ...remotes.map((r) => `${r.remote}/${r.branch}`)]
+  const ok = await confirm({
+    title: `Delete ${total} branches`,
+    message:
+      `Delete ${names.slice(0, 12).join(', ')}${names.length > 12 ? ` and ${names.length - 12} more` : ''}?` +
+      (remotes.length > 0 ? `\n\n${remotes.length} remote branch${remotes.length === 1 ? ' is' : 'es are'} deleted on the remote for everyone and cannot be restored from here.` : ''),
+    confirmLabel: 'Delete',
+    destructive: remotes.length > 0
+  })
+  if (!ok) return
+
+  const deleted: { name: string; sha: string }[] = []
+  const unmerged: string[] = []
+  const failed: string[] = []
+  for (const n of locals) {
+    try {
+      deleted.push({ name: n, sha: await api.branch.delete(root, n, false) })
+    } catch (err) {
+      if (err instanceof ApiError && err.info.code === 'NOT_MERGED') unmerged.push(n)
+      else {
+        failed.push(n)
+        notifyError(err, `Could not delete ${n}`)
+      }
+    }
+  }
+  if (unmerged.length > 0) {
+    const force = await confirm({
+      title: 'Branches not fully merged',
+      message: `${unmerged.join(', ')} ${unmerged.length === 1 ? 'has' : 'have'} commits that are not merged into the current branch or upstream. Force-delete ${unmerged.length === 1 ? 'it' : 'them'}? (Restorable right after, or via the reflog.)`,
+      confirmLabel: 'Force Delete',
+      destructive: true
+    })
+    if (force) {
+      for (const n of unmerged) {
+        try {
+          deleted.push({ name: n, sha: await api.branch.delete(root, n, true) })
+        } catch (err) {
+          failed.push(n)
+          notifyError(err, `Could not delete ${n}`)
+        }
+      }
+    }
+  }
+  const byRemote = new Map<string, string[]>()
+  for (const r of remotes) byRemote.set(r.remote, [...(byRemote.get(r.remote) ?? []), r.branch])
+  let remoteDeleted = 0
+  for (const [remote, branches] of byRemote) {
+    try {
+      await api.branch.deleteRemoteMany(root, remote, branches, newId())
+      remoteDeleted += branches.length
+    } catch (err) {
+      notifyError(err, `Could not delete branches on ${remote}`)
+    }
+  }
+  refreshRepo(root)
+  const count = deleted.length + remoteDeleted
+  if (count === 0) return
+  toast.success(`Deleted ${count} branch${count === 1 ? '' : 'es'}`, {
+    duration: 10_000,
+    action:
+      deleted.length > 0
+        ? {
+            label: deleted.length === 1 ? 'Restore' : `Restore ${deleted.length} local`,
+            onClick: () =>
+              void (async () => {
+                for (const d of deleted) await api.branch.restore(root, d.name, d.sha).catch((e) => notifyError(e, `Could not restore ${d.name}`))
+                refreshRepo(root)
+                toast.success('Branches restored')
+              })()
+          }
+        : undefined
+  })
+}

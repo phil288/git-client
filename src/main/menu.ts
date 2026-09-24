@@ -34,6 +34,8 @@ export function buildMenu(deps: MenuDeps): void {
         { type: 'separator' },
         { label: 'Close Tab', accelerator: 'CmdOrCtrl+W', click: cmd('close-tab') },
         { type: 'separator' },
+        { label: 'Settings…', accelerator: 'CmdOrCtrl+,', click: cmd('settings') },
+        { type: 'separator' },
         isMac ? { role: 'close' } : { role: 'quit', label: 'E&xit' }
       ]
     },
@@ -41,6 +43,8 @@ export function buildMenu(deps: MenuDeps): void {
     {
       label: '&View',
       submenu: [
+        { label: 'Git Log', click: cmd('show-log') },
+        { label: 'Commit', accelerator: 'CmdOrCtrl+K', click: cmd('show-commit') },
         { label: 'Git Console', accelerator: 'Alt+9', click: cmd('toggle-console') },
         { type: 'separator' },
         { role: 'reload', visible: !app.isPackaged },
@@ -76,6 +80,9 @@ export function buildMenu(deps: MenuDeps): void {
     {
       label: '&Help',
       submenu: [
+        { label: 'Keyboard Shortcuts', click: cmd('shortcuts') },
+        { label: 'Check for Updates…', click: cmd('check-updates') },
+        { type: 'separator' },
         {
           label: 'About GitClient',
           click: () => {

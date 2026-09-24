@@ -1,4 +1,4 @@
-import type { Commit, FileChange, FileStatus, Ref } from '@shared/types'
+import type { Commit, DiffHunk, DiffLine, FileChange, FileStatus, Ref, StatusEntry, WorkingStatus } from '@shared/types'
 
 /**
  * Parsers for machine-readable git output only (porcelain v2, -z, --format
@@ -266,4 +266,125 @@ export function applyNumstat(files: FileChange[], output: string): FileChange[] 
     const c = counts.get(f.path)
     return c ? { ...f, additions: c[0], deletions: c[1] } : f
   })
+}
+
+// ---------------------------------------------------------------------------
+// Full status (porcelain v2 -z) and unified diffs
+// ---------------------------------------------------------------------------
+
+/** Parses `git status --porcelain=v2 --branch -z` into branch info + one entry per path. */
+export function parseStatusFull(output: string): WorkingStatus {
+  const summary = parseStatusV2(output)
+  const entries: StatusEntry[] = []
+  const t = output.split('\0')
+  for (let i = 0; i < t.length; i++) {
+    const rec = t[i]!
+    if (rec === '' || rec.startsWith('# ')) continue
+    const kind = rec[0]
+    if (kind === '?') {
+      entries.push({ path: rec.slice(2), index: '?', worktree: '?', untracked: true, conflicted: false, submodule: false })
+    } else if (kind === '1') {
+      // 1 XY sub mH mI mW hH hI path
+      const parts = rec.split(' ')
+      const xy = parts[1] ?? '..'
+      entries.push({
+        path: parts.slice(8).join(' '),
+        index: xy[0]!,
+        worktree: xy[1]!,
+        untracked: false,
+        conflicted: false,
+        submodule: (parts[2] ?? 'N').startsWith('S')
+      })
+    } else if (kind === '2') {
+      // 2 XY sub mH mI mW hH hI Xscore path \0 origPath
+      const parts = rec.split(' ')
+      const xy = parts[1] ?? '..'
+      entries.push({
+        path: parts.slice(9).join(' '),
+        origPath: t[++i],
+        index: xy[0]!,
+        worktree: xy[1]!,
+        untracked: false,
+        conflicted: false,
+        submodule: (parts[2] ?? 'N').startsWith('S')
+      })
+    } else if (kind === 'u') {
+      // u XY sub m1 m2 m3 mW h1 h2 h3 path
+      const parts = rec.split(' ')
+      const xy = parts[1] ?? 'UU'
+      entries.push({
+        path: parts.slice(10).join(' '),
+        index: xy[0]!,
+        worktree: xy[1]!,
+        untracked: false,
+        conflicted: true,
+        conflictCode: xy,
+        submodule: (parts[2] ?? 'N').startsWith('S')
+      })
+    }
+  }
+  return {
+    branch: summary.branch,
+    detached: summary.detached,
+    upstream: summary.upstream,
+    ahead: summary.ahead,
+    behind: summary.behind,
+    entries
+  }
+}
+
+export interface ParsedDiff {
+  header: string[]
+  hunks: Omit<DiffHunk, 'source' | 'id'>[]
+  binary: boolean
+}
+
+/** Parses a single-file unified diff (`git diff -- <path>`). */
+export function parseUnifiedDiff(text: string): ParsedDiff {
+  const lines = text.split('\n')
+  if (lines[lines.length - 1] === '') lines.pop()
+  const header: string[] = []
+  const hunks: ParsedDiff['hunks'] = []
+  let binary = false
+  let cur: ParsedDiff['hunks'][number] | null = null
+  let oldNo = 0
+  let newNo = 0
+  for (const line of lines) {
+    const m = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/.exec(line)
+    if (m) {
+      cur = { header: line, oldStart: Number(m[1]), oldLines: m[2] === undefined ? 1 : Number(m[2]), newStart: Number(m[3]), newLines: m[4] === undefined ? 1 : Number(m[4]), lines: [] }
+      hunks.push(cur)
+      oldNo = cur.oldStart
+      newNo = cur.newStart
+      continue
+    }
+    if (!cur) {
+      if (/^Binary files .* differ$/.test(line) || line.startsWith('GIT binary patch')) binary = true
+      header.push(line)
+      continue
+    }
+    const kind = line[0]
+    if (kind === '\\') {
+      // "\ No newline at end of file" belongs to the previous line; keep it verbatim.
+      cur.lines.push({ kind: ' ', text: line, oldLine: null, newLine: null } as DiffLine)
+      continue
+    }
+    if (kind === '+') cur.lines.push({ kind: '+', text: line.slice(1), oldLine: null, newLine: newNo++ })
+    else if (kind === '-') cur.lines.push({ kind: '-', text: line.slice(1), oldLine: oldNo++, newLine: null })
+    else cur.lines.push({ kind: ' ', text: line.slice(1), oldLine: oldNo++, newLine: newNo++ })
+  }
+  return { header, hunks, binary }
+}
+
+/** Rebuilds a patch containing only the given hunks (for `git apply`). */
+export function buildPatch(header: string[], hunks: Omit<DiffHunk, 'source' | 'id'>[]): string {
+  const out = [...header]
+  for (const h of hunks) {
+    out.push(h.header)
+    for (const l of h.lines) {
+      if (l.oldLine === null && l.newLine === null && l.text.startsWith('\\')) out.push(l.text)
+      else out.push(l.kind + l.text)
+    }
+  }
+  return out.join('\n') + '\n'
 }

@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import { statSync } from 'node:fs'
-import { delimiter, isAbsolute, join } from 'node:path'
+import { delimiter, dirname, isAbsolute, join } from 'node:path'
 import { AppError } from './git/errors'
 
 /**
@@ -93,7 +93,14 @@ export async function openInEditor(command: string, path: string): Promise<void>
   if (!name) throw new AppError('No editor command configured (Settings → Editor command)', 'INVALID_ARGUMENT')
   const exe = findExecutable(name)
   if (!exe) throw new AppError(`Editor command not found: ${name}`, 'INVALID_ARGUMENT')
-  await launch(exe, [...args, path], path)
+  // `path` may be a file (Open in Editor from the changes tree): run from its folder.
+  let cwd = path
+  try {
+    if (!statSync(path).isDirectory()) cwd = dirname(path)
+  } catch {
+    cwd = dirname(path)
+  }
+  await launch(exe, [...args, path], cwd)
 }
 
 const LINUX_TERMINALS: { name: string; args: (dir: string) => string[] }[] = [

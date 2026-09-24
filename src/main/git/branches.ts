@@ -316,3 +316,12 @@ export async function outgoing(runner: GitRunner, root: string, branch: string, 
   const r = await runner.run([...args, '--'], { cwd: root })
   return takeLogRecords(r.stdout, true).records.map((c) => ({ ...c, onCurrentBranch: true }))
 }
+
+/** Deletes several branches on one remote with a single push. */
+export async function deleteRemoteBranches(runner: GitRunner, root: string, remote: string, branches: string[], progress?: Progress): Promise<void> {
+  if (branches.length === 0) return
+  await runner.run(['push', '--progress', assertName(remote, 'remote'), '--delete', ...branches.map((b) => `refs/heads/${assertName(b, 'branch')}`)], {
+    cwd: root,
+    onStderrLine: (l) => progress?.(l, progressPercent(l))
+  })
+}

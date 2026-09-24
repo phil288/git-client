@@ -236,6 +236,12 @@ describe('install.sh configuration', () => {
     expect(script).toContain(`local DEFAULT_REPO='${slug}'`)
   })
 
+  it('install.ps1 uses the same <OWNER>/<REPO>', () => {
+    const pkg = JSON.parse(readFileSync(resolve(__dirname, '../../package.json'), 'utf8')) as { repository: { url: string } }
+    const slug = /github\.com\/(.+?)(?:\.git)?$/.exec(pkg.repository.url)?.[1]
+    expect(readFileSync(resolve(__dirname, '../../install.ps1'), 'utf8')).toContain(`$DefaultRepo = '${slug}'`)
+  })
+
   it('wraps everything in main() called on the last line', () => {
     const lines = readFileSync(SCRIPT, 'utf8').trimEnd().split('\n')
     expect(lines.at(-1)).toBe('main "$@"')

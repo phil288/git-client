@@ -1,13 +1,14 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { Commit, LogQuery, Ref } from '@shared/types'
 import { api } from '@/lib/api'
 import { notifyError } from '@/lib/notify'
+import { useSettledValue } from '@/hooks/useSettledValue'
 import { useTabUi } from '@/hooks/useTabUi'
 import { useEpoch } from '@/stores/repoEpoch'
-import type { RepoTab } from '@/stores/tabs'
+import type { TabRef } from '@/stores/tabs'
 import { SplitPane } from '@/components/SplitPane'
-import { DiffViewer, type DiffSide } from '../diff/DiffViewer'
+import { DiffViewer, type DiffSide } from '../diff/LazyDiffViewer'
 import { CommitDetailsPanel, type OpenFileRequest } from './CommitDetailsPanel'
 import { useLogModel } from './logModel'
 import { EMPTY_SELECTION, LogTable, type LogTableHandle, type Selection } from './LogTable'
@@ -35,12 +36,15 @@ export function graphApplies(q: LogQuery): boolean {
 }
 
 interface Props {
-  tab: RepoTab
+  tab: TabRef
   headSha: string | null
   detached: boolean
   /** Left sidebar (branches, M4). */
   sidebar?: (ctx: { query: LogQuery; setQuery(q: LogQuery): void; goTo(hash: string): Promise<void> }) => React.ReactNode
-  renderMenu?: (selected: Commit[], ctx: { goTo(hash: string): Promise<void>; openDiff(left: DiffSide, right: DiffSide, title?: string): void }) => React.ReactNode
+  renderMenu?: (
+    selected: Commit[],
+    ctx: { goTo(hash: string): Promise<void>; openDiff(left: DiffSide, right: DiffSide, title?: string): void; branchCommits(): Commit[] }
+  ) => React.ReactNode
 }
 
 /** JetBrains "Log" tab: filters, graph table, details and diff. */
@@ -55,6 +59,7 @@ export function LogView({ tab, headSha, detached, sidebar, renderMenu }: Props) 
   const [diff, setDiff] = useState<{ left: DiffSide; right: DiffSide; title?: string } | null>(null)
   const tableRef = useRef<LogTableHandle>(null)
 
+  const [pendingGoTo, setPendingGoTo] = useTabUi<string | null>(tab.id, 'logPendingGoTo', null)
   const showGraph = graphApplies(query)
   const model = useLogModel(root, query, showGraph, epoch)
   const refs = useRefs(root)
@@ -71,6 +76,10 @@ export function LogView({ tab, headSha, detached, sidebar, renderMenu }: Props) 
     [selection.hashes, model, model.commits.length]
   )
 
+  // Each selected commit costs several git calls in the details panel: skip the
+  // commits merely passed over while holding an arrow key.
+  const detailsCommits = useSettledValue(selectedCommits)
+
   const goTo = useCallback(
     async (hash: string) => {
       const idx = await model.loadUntil(hash)
@@ -83,6 +92,13 @@ export function LogView({ tab, headSha, detached, sidebar, renderMenu }: Props) 
     },
     [model, setSelection]
   )
+
+  // "Show in Log" from other views (blame, file history).
+  useEffect(() => {
+    if (!pendingGoTo) return
+    setPendingGoTo(null)
+    void goTo(pendingGoTo)
+  }, [pendingGoTo, goTo, setPendingGoTo])
 
   // Most frequent authors among the first loaded commits, for the User filter.
   const authors = useMemo(() => {
@@ -116,12 +132,20 @@ export function LogView({ tab, headSha, detached, sidebar, renderMenu }: Props) 
             showGraph={showGraph}
             selection={selection}
             onSelectionChange={setSelection}
-            renderMenu={renderMenu ? (sel) => renderMenu(sel, { goTo, openDiff }) : undefined}
+            renderMenu={
+              renderMenu
+                ? (sel) =>
+                    renderMenu(
+                      [...sel].sort((a, b) => (model.index.get(a.hash) ?? 0) - (model.index.get(b.hash) ?? 0)),
+                      { goTo, openDiff, branchCommits: () => model.commits.filter((c) => c.onCurrentBranch).slice(0, 500) }
+                    )
+                : undefined
+            }
           />
         </div>
         <CommitDetailsPanel
           root={root}
-          commits={selectedCommits}
+          commits={detailsCommits}
           selectedPath={diff?.right.path ?? null}
           onOpenFile={openFile}
           onGoTo={(h) => void goTo(h)}

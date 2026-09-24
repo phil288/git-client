@@ -17,6 +17,10 @@ import { GitService } from './git/GitService'
 import { LogSessions } from './git/log'
 import { registerLogHandlers } from './handlers/log'
 import { registerBranchHandlers } from './handlers/branches'
+import { registerRewriteHandlers } from './handlers/rewrite'
+import { registerWorkingTreeHandlers } from './handlers/workingTree'
+import { registerM7Handlers } from './handlers/m7'
+import { registerConflictHandlers } from './handlers/conflicts'
 import { initEditors } from './git/editors'
 import type { MainContext } from './context'
 import { locateGit } from './git/locate'
@@ -31,6 +35,9 @@ import { RecentsService } from './repos/RecentsService'
 import { scanForRepos } from './repos/scan'
 import { RepoWatcher } from './repos/watcher'
 import { openStore } from './store'
+import { AutoFetcher } from './autoFetch'
+import { checkForUpdates, downloadAndInstall } from './updates'
+import { getExplorerMenu, getFileManagerScripts, setExplorerMenu, setFileManagerScripts, updateJumpList } from './osIntegration'
 import { createMainWindow, isTrustedSender } from './window'
 
 // Test/dev hook: isolate state (Playwright uses a temp dir).
@@ -94,6 +101,17 @@ async function main(): Promise<void> {
   const ops = new OperationManager()
   const watcher = new RepoWatcher((root) => send(mainWindow?.webContents, 'repo:changed', { root }))
   const logs = new LogSessions(runner)
+  const autoFetch = new AutoFetcher(runner, () => watcher.roots(), (root) => send(mainWindow?.webContents, 'repo:changed', { root }))
+  autoFetch.configure(getSettings().autoFetchMinutes)
+  const refreshJumpList = () => {
+    const all = recents.list().repos.filter((r) => r.exists)
+    const name = (r: { path: string; displayName: string | null }) => r.displayName ?? r.path.split(/[\\/]/).pop() ?? r.path
+    updateJumpList(
+      all.filter((r) => r.pinned).map((r) => ({ path: r.path, name: name(r) })),
+      recents.mostRecent(10).filter((r) => !all.find((x) => x.path === r.path)?.pinned)
+    )
+  }
+  refreshJumpList()
 
   const requireGit = (): void => {
     if (gitStatus.state !== 'ok') throw new AppError('Git is not available', 'GIT_MISSING')
@@ -118,6 +136,7 @@ async function main(): Promise<void> {
   recents.on('changed', (state) => {
     send(mainWindow?.webContents, 'recents:changed', state)
     rebuildMenu()
+    refreshJumpList()
   })
 
   // ---------------------------------------------------------------------------
@@ -253,6 +272,7 @@ async function main(): Promise<void> {
     store.set('settings', next) // schema-validated by electron-store; throws on bad values
     if (next.theme !== current.theme) nativeTheme.themeSource = next.theme
     if (next.gitPath !== current.gitPath) await recheckGit()
+    if (next.autoFetchMinutes !== current.autoFetchMinutes) autoFetch.configure(next.autoFetchMinutes)
     return next
   })
 
@@ -296,8 +316,21 @@ async function main(): Promise<void> {
     settings: getSettings,
     notifyRepoChanged: (root) => send(mainWindow?.webContents, 'repo:changed', { root })
   }
+  handle('os:integration', async () => ({
+    platform: process.platform,
+    explorerMenu: await getExplorerMenu(),
+    fileManagerScripts: getFileManagerScripts()
+  }))
+  handle('os:setExplorerMenu', (_e, enable) => setExplorerMenu(assert.boolean(enable, 'enable')))
+  handle('os:setFileManagerScripts', (_e, enable) => setFileManagerScripts(assert.boolean(enable, 'enable')))
+  handle('update:check', () => checkForUpdates())
+  handle('update:install', (_e, opId) => ops.run(assert.nonEmptyString(opId, 'opId'), 'Updating GitClient', false, (op) => downloadAndInstall(op.progress)))
   registerLogHandlers(ctx)
   registerBranchHandlers(ctx)
+  registerRewriteHandlers(ctx)
+  registerWorkingTreeHandlers(ctx)
+  registerM7Handlers(ctx)
+  registerConflictHandlers(ctx, () => (gitStatus.state === 'missing' ? [0, 0, 0] : gitStatus.git.versionParts))
 
   // ---------------------------------------------------------------------------
   // Window lifecycle
@@ -324,6 +357,7 @@ async function main(): Promise<void> {
   })
   app.on('before-quit', () => {
     ops.cancelAll()
+    autoFetch.stop()
     logs.closeAll()
     void watcher.closeAll()
   })

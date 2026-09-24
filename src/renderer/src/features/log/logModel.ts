@@ -3,7 +3,9 @@ import { createGraphState, layoutGraph, type GraphRow } from '@shared/graph'
 import type { Commit, LogQuery } from '@shared/types'
 import { api, errorInfo } from '@/lib/api'
 
+/** First page small (fast first paint), later pages bigger (fewer IPC round-trips). */
 export const PAGE_SIZE = 2000
+export const LATER_PAGE_SIZE = 10_000
 
 /**
  * Commits of one log query, loaded page by page from a main-process log
@@ -46,7 +48,7 @@ export class LogModel {
     for (const fn of this.listeners) fn()
   }
 
-  loadMore(count = PAGE_SIZE): Promise<void> {
+  loadMore(count = this.commits.length === 0 ? PAGE_SIZE : LATER_PAGE_SIZE): Promise<void> {
     if (this.inflight) return this.inflight
     if (this.done || this.disposed) return Promise.resolve()
     this.loading = true
@@ -94,6 +96,11 @@ export class LogModel {
       await this.loadMore(10_000)
     }
     return this.index.get(hash) ?? -1
+  }
+
+  /** Loads everything that is left (End key). */
+  async loadRest(): Promise<void> {
+    while (!this.done && !this.disposed) await this.loadMore(20_000)
   }
 
   dispose(): void {

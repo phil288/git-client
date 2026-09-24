@@ -1,16 +1,16 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Cloud, CloudOff, Download, Folder, GitBranch, Plus, Search, Star, Tag } from 'lucide-react'
 import { fuzzyFilter } from '@shared/fuzzy'
 import type { LogQuery, Ref } from '@shared/types'
 import { api } from '@/lib/api'
-import { checkoutFlow, fetchFlow, refToTarget } from '@/lib/gitOps'
+import { checkoutFlow, deleteBranchesFlow, fetchFlow, refToTarget } from '@/lib/gitOps'
 import { run } from '@/lib/notify'
-import { cn } from '@/lib/utils'
+import { cn, isPrimaryModifier } from '@/lib/utils'
 import { useTabUi } from '@/hooks/useTabUi'
 import { openModal } from '@/stores/modals'
-import type { RepoTab } from '@/stores/tabs'
-import { ContextMenu, ContextMenuContent, ContextMenuTrigger } from '@/components/ui/context-menu'
+import type { TabRef } from '@/stores/tabs'
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { Input } from '@/components/ui/input'
 import { BranchMenu } from './BranchMenu'
 
@@ -45,7 +45,7 @@ export function usePrefs(root: string) {
 }
 
 interface Props {
-  tab: RepoTab
+  tab: TabRef
   refs: Ref[]
   currentBranch: string | null
   query: LogQuery
@@ -62,6 +62,51 @@ export function BranchesPanel({ tab, refs, currentBranch, query, setQuery }: Pro
   const prefs = usePrefs(root)
   const recent = useQuery({ queryKey: ['repo', root, 'recentBranches'], queryFn: () => api.branch.recent(root) })
   const favorites = useMemo(() => new Set(prefs.data?.favorites ?? []), [prefs.data])
+  // Multi-selection (Ctrl/Cmd+click toggles, Shift+click selects a range) for bulk deletion.
+  const [sel, setSel] = useState<Set<string>>(new Set())
+  const [anchor, setAnchor] = useState<string | null>(null)
+  const order = useRef<string[]>([])
+  order.current = []
+  const refByName = useMemo(() => new Map(refs.map((r) => [r.name, r])), [refs])
+
+  const deletable = (names: Iterable<string>) => {
+    const locals: string[] = []
+    const remotes: { remote: string; branch: string }[] = []
+    for (const n of names) {
+      const r = refByName.get(n)
+      if (!r) continue
+      if (r.kind === 'local' && r.short !== currentBranch) locals.push(r.short)
+      else if (r.kind === 'remote' && r.remote) remotes.push({ remote: r.remote, branch: r.short.slice(r.remote.length + 1) })
+    }
+    return { locals, remotes }
+  }
+  const deleteSelected = () => {
+    const d = deletable(sel)
+    void deleteBranchesFlow(root, d.locals, d.remotes).then(() => setSel(new Set()))
+  }
+  const onRowClick = (r: Ref, e: React.MouseEvent) => {
+    if (isPrimaryModifier(e)) {
+      const next = new Set(sel)
+      if (next.has(r.name)) next.delete(r.name)
+      else next.add(r.name)
+      setSel(next)
+      setAnchor(r.name)
+      return
+    }
+    if (e.shiftKey && anchor) {
+      const a = order.current.indexOf(anchor)
+      const b = order.current.indexOf(r.name)
+      if (a >= 0 && b >= 0) {
+        const [lo, hi] = a < b ? [a, b] : [b, a]
+        setSel(new Set(order.current.slice(lo, hi + 1)))
+        return
+      }
+    }
+    setSel(new Set([r.name]))
+    setAnchor(r.name)
+    const filtered = query.revs.includes(r.name)
+    setQuery({ ...query, revs: filtered ? [] : [r.name] })
+  }
 
   const toggle = (key: string) => setCollapsed(collapsed.has(key) ? collapsedList.filter((k) => k !== key) : [...collapsedList, key])
   const toggleFavorite = (r: Ref) =>
@@ -81,16 +126,31 @@ export function BranchesPanel({ tab, refs, currentBranch, query, setQuery }: Pro
   const row = (r: Ref, label: string, depth: number) => {
     const isCurrent = r.kind === 'local' && r.short === currentBranch
     const filtered = query.revs.includes(r.name)
+    const selected = sel.has(r.name)
+    if (!order.current.includes(r.name)) order.current.push(r.name)
+    const multi = selected && sel.size > 1
+    const bulk = multi ? deletable(sel) : null
     return (
       <ContextMenu key={`${r.name}:${depth}:${label}`}>
         <ContextMenuTrigger asChild>
           <div
             data-testid="branch-row"
             data-ref={r.name}
-            className={cn('group flex h-[22px] cursor-default items-center gap-1.5 pr-2 hover:bg-hover', filtered && 'bg-selected hover:bg-selected')}
+            data-selected={selected || undefined}
+            className={cn(
+              'group flex h-[22px] cursor-default items-center gap-1.5 pr-2 hover:bg-hover',
+              (filtered || selected) && 'bg-selected hover:bg-selected',
+              selected && sel.size > 1 && 'outline outline-1 -outline-offset-1 outline-accent/50'
+            )}
             style={{ paddingLeft: 8 + depth * 14 }}
-            title={`${r.short}${r.upstream ? ` → ${r.upstream}` : ''}\n${r.subject}`}
-            onClick={() => setQuery({ ...query, revs: filtered ? [] : [r.name] })}
+            title={`${r.short}${r.upstream ? ` → ${r.upstream}` : ''}\n${r.subject}\n(Ctrl+click / Shift+click to select several)`}
+            onClick={(e) => onRowClick(r, e)}
+            onContextMenu={() => {
+              if (!sel.has(r.name)) {
+                setSel(new Set([r.name]))
+                setAnchor(r.name)
+              }
+            }}
             onDoubleClick={() => void checkoutFlow(root, refToTarget(r))}
           >
             {r.kind === 'tag' ? (
@@ -136,7 +196,20 @@ export function BranchesPanel({ tab, refs, currentBranch, query, setQuery }: Pro
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent className="min-w-64">
-          <BranchMenu root={root} r={r} currentBranch={currentBranch} favorite={favorites.has(r.name)} onToggleFavorite={() => toggleFavorite(r)} />
+          {multi && bulk ? (
+            <>
+              <ContextMenuItem disabled={bulk.locals.length + bulk.remotes.length === 0} onSelect={deleteSelected} data-testid="delete-selected-branches">
+                Delete {bulk.locals.length + bulk.remotes.length} Selected Branch{bulk.locals.length + bulk.remotes.length === 1 ? '' : 'es'}…
+              </ContextMenuItem>
+              {sel.size > bulk.locals.length + bulk.remotes.length && (
+                <div className="px-2 py-1 text-xs text-muted">The current branch and tags are skipped.</div>
+              )}
+              <ContextMenuSeparator />
+              <ContextMenuItem onSelect={() => setSel(new Set())}>Clear Selection</ContextMenuItem>
+            </>
+          ) : (
+            <BranchMenu root={root} r={r} currentBranch={currentBranch} favorite={favorites.has(r.name)} onToggleFavorite={() => toggleFavorite(r)} />
+          )}
         </ContextMenuContent>
       </ContextMenu>
     )
@@ -187,7 +260,27 @@ export function BranchesPanel({ tab, refs, currentBranch, query, setQuery }: Pro
           <Download className="size-3.5" />
         </button>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto py-1">
+      {sel.size > 1 && (
+        <div className="flex shrink-0 items-center gap-2 border-b border-border-strong bg-selected/40 px-2 py-1 text-xs">
+          {sel.size} selected
+          <button className="ml-auto text-danger hover:underline" onClick={deleteSelected} data-testid="delete-selected-bar">
+            Delete…
+          </button>
+          <button className="text-muted hover:underline" onClick={() => setSel(new Set())}>
+            Clear
+          </button>
+        </div>
+      )}
+      <div
+        className="min-h-0 flex-1 overflow-y-auto py-1 outline-none"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if ((e.key === 'Delete' || e.key === 'Backspace') && sel.size > 0) {
+            e.preventDefault()
+            deleteSelected()
+          } else if (e.key === 'Escape') setSel(new Set())
+        }}
+      >
         {results ? (
           results.length === 0 ? (
             <div className="p-3 text-muted">No match</div>

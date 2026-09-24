@@ -259,6 +259,8 @@ export interface CommandLogEntry {
   cancelled: boolean
   /** Still running; a second entry with the same id replaces it when done. */
   running: boolean
+  /** Automatic refresh (status polling etc.); hidden in the console unless enabled. */
+  background: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -282,6 +284,11 @@ export type MenuCommand =
   | 'prev-tab'
   | 'quick-switcher'
   | 'toggle-console'
+  | 'show-commit'
+  | 'show-log'
+  | 'settings'
+  | 'shortcuts'
+  | 'check-updates'
   | { type: 'goto-tab'; index: number }
   | { type: 'open-recent'; path: string }
 
@@ -671,4 +678,27 @@ export interface UpdateInfo {
   /** Linux: shell command that upgrades in place. */
   updateCommand?: string
   error?: string
+}
+
+/** What git is in the middle of, read from the git dir (M5, M8). */
+export interface OperationState {
+  operation: 'merge' | 'rebase' | 'cherry-pick' | 'revert' | 'am' | 'bisect' | null
+  /** Human summary, e.g. "Rebasing feature/x onto main". */
+  title: string
+  step: number | null
+  total: number | null
+  /** Branch being rebased (short name). */
+  headName: string | null
+  /** Rebase: the commit/branch being rebased onto. */
+  onto: string | null
+  ontoName: string | null
+  /** Commit being applied / merged (REBASE_HEAD, CHERRY_PICK_HEAD, REVERT_HEAD, MERGE_HEAD). */
+  currentCommit: string | null
+  currentSubject: string | null
+  /** Branch name of the merged commit when known. */
+  mergeName: string | null
+  conflicted: string[]
+  canSkip: boolean
+  /** Merge commit message git prepared (MERGE_MSG / SQUASH_MSG). */
+  preparedMessage: string | null
 }

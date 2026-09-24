@@ -64,6 +64,11 @@ export class RepoWatcher {
     this.entries.delete(root)
   }
 
+  /** Repositories currently open (one watcher per open tab). */
+  roots(): string[] {
+    return [...this.entries.keys()]
+  }
+
   async closeAll(): Promise<void> {
     await Promise.all([...this.entries.values()].map((e) => e.watcher.close()))
     this.entries.clear()

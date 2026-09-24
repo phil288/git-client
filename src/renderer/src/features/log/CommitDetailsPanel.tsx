@@ -4,6 +4,9 @@ import type { Commit, FileChange } from '@shared/types'
 import { api } from '@/lib/api'
 import { absoluteDate, formatDate, shortHash } from '@/lib/format'
 import { run } from '@/lib/notify'
+import { showBlame, showFileHistory } from '@/lib/views'
+import { useState } from 'react'
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { FileTree } from '../common/FileTree'
 
 export interface OpenFileRequest {
@@ -37,7 +40,23 @@ function Person({ label, name, email, time }: { label: string; name: string; ema
 }
 
 /** Commit details: message, people, parents, containing refs and changed files. */
+function FileMenu({ file, rev, children }: { file: FileChange | null; rev: string; children: React.ReactNode }) {
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+      {file && (
+        <ContextMenuContent>
+          <ContextMenuItem onSelect={() => showFileHistory(file.path)}>Show History</ContextMenuItem>
+          {file.status !== 'D' && <ContextMenuItem onSelect={() => showBlame(file.path, rev)}>Annotate This Revision</ContextMenuItem>}
+          <ContextMenuItem onSelect={() => run(() => api.shell.copyText(file.path))}>Copy Path</ContextMenuItem>
+        </ContextMenuContent>
+      )}
+    </ContextMenu>
+  )
+}
+
 export function CommitDetailsPanel({ root, commits, selectedPath, onOpenFile, onGoTo }: Props) {
+  const [menuFile, setMenuFile] = useState<FileChange | null>(null)
   const single = commits.length === 1 ? commits[0]! : null
   const details = useQuery({
     queryKey: ['commit', root, single?.hash],
@@ -145,7 +164,16 @@ export function CommitDetailsPanel({ root, commits, selectedPath, onOpenFile, on
         {details.isError && <div className="p-3 text-danger">{details.error.message}</div>}
         {d && d.files.length === 0 && <div className="p-3 text-muted">No changes (empty commit)</div>}
         {d && (
-          <FileTree files={d.files} selected={selectedPath} onSelect={(f) => onOpenFile({ change: f as FileChange, from, to: single.hash })} />
+          <FileMenu file={menuFile} rev={single.hash}>
+            <div>
+              <FileTree
+                files={d.files}
+                selected={selectedPath}
+                onSelect={(f) => onOpenFile({ change: f as FileChange, from, to: single.hash })}
+                onContextMenu={(f) => setMenuFile(f as FileChange)}
+              />
+            </div>
+          </FileMenu>
         )}
         {d && single.parents.length > 1 && (
           <div className="px-3 py-1 text-[11px] text-muted">Merge commit: changes shown against the first parent.</div>

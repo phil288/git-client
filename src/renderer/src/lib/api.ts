@@ -1,5 +1,5 @@
 import type { EventChannel, InvokeArgs, InvokeChannel, InvokeResult, IpcEventMap } from '@shared/ipc'
-import type { CloneRequest, ErrorInfo, LogQuery, MergeMode, PullMode, PushOptions, RepoGroup, RepoPrefs, SessionState, Settings } from '@shared/types'
+import type { CloneRequest, ErrorInfo, FileContent, LogQuery, MergeMode, PullMode, PushOptions, RepoGroup, RepoPrefs, ResetMode, RewritePlan, SessionState, Settings } from '@shared/types'
 
 /** Error carrying git's stderr and the failed command across IPC. */
 export class ApiError extends Error {
@@ -61,6 +61,7 @@ export const api = {
     delete: (root: string, name: string, force: boolean) => call('branch:delete', root, name, force),
     restore: (root: string, name: string, sha: string) => call('branch:restore', root, name, sha),
     deleteRemote: (root: string, remote: string, branch: string, opId: string) => call('branch:deleteRemote', root, remote, branch, opId),
+    deleteRemoteMany: (root: string, remote: string, branches: string[], opId: string) => call('branch:deleteRemoteMany', root, remote, branches, opId),
     setUpstream: (root: string, branch: string, upstream: string | null) => call('branch:setUpstream', root, branch, upstream),
     merge: (root: string, ref: string, mode: MergeMode) => call('branch:merge', root, ref, mode),
     rebase: (root: string, onto: string, branch: string | null) => call('branch:rebase', root, onto, branch),
@@ -77,6 +78,88 @@ export const api = {
   prefs: {
     get: (root: string) => call('prefs:get', root),
     update: (root: string, patch: Partial<RepoPrefs>) => call('prefs:update', root, patch)
+  },
+  rewrite: {
+    commits: (root: string, base: string | null) => call('rewrite:commits', root, base),
+    check: (root: string, base: string | null, hashes: string[]) => call('rewrite:check', root, base, hashes),
+    run: (root: string, plan: RewritePlan, operation: string) => call('rewrite:run', root, plan, operation),
+    amendHead: (root: string, message: string) => call('rewrite:amendHead', root, message),
+    reset: (root: string, target: string, mode: ResetMode) => call('rewrite:reset', root, target, mode),
+    undoCommit: (root: string) => call('rewrite:undoCommit', root),
+    cherryPick: (root: string, hashes: string[]) => call('rewrite:cherryPick', root, hashes),
+    revert: (root: string, hashes: string[]) => call('rewrite:revert', root, hashes),
+    patch: (root: string, hashes: string[]) => call('rewrite:patch', root, hashes),
+    reflog: (root: string) => call('rewrite:reflog', root),
+    backups: (root: string) => call('rewrite:backups', root),
+    undoLast: (root: string, hard: boolean) => call('rewrite:undoLast', root, hard)
+  },
+  wt: {
+    status: (root: string) => call('wt:status', root),
+    hunks: (root: string, path: string) => call('wt:hunks', root, path),
+    stage: (root: string, paths: string[]) => call('wt:stage', root, paths),
+    unstage: (root: string, paths: string[]) => call('wt:unstage', root, paths),
+    discard: (root: string, paths: string[]) => call('wt:discard', root, paths),
+    stageHunks: (root: string, path: string, ids: string[]) => call('wt:stageHunks', root, path, ids),
+    unstageHunks: (root: string, path: string, ids: string[]) => call('wt:unstageHunks', root, path, ids),
+    discardHunks: (root: string, path: string, ids: string[]) => call('wt:discardHunks', root, path, ids),
+    commit: (root: string, message: string, options: { amend: boolean; signOff: boolean }) => call('wt:commit', root, message, options),
+    lastMessage: (root: string) => call('wt:lastMessage', root)
+  },
+  stash: {
+    list: (root: string) => call('stash:list', root),
+    files: (root: string, index: number) => call('stash:files', root, index),
+    push: (root: string, message: string, includeUntracked: boolean, keepIndex: boolean) => call('stash:push', root, message, includeUntracked, keepIndex),
+    apply: (root: string, index: number, reinstateIndex: boolean) => call('stash:apply', root, index, reinstateIndex),
+    pop: (root: string, index: number, reinstateIndex: boolean) => call('stash:pop', root, index, reinstateIndex),
+    drop: (root: string, index: number) => call('stash:drop', root, index),
+    branch: (root: string, name: string, index: number) => call('stash:branch', root, name, index)
+  },
+  history: {
+    file: (root: string, path: string) => call('history:file', root, path),
+    blame: (root: string, path: string, rev: string | null) => call('history:blame', root, path, rev)
+  },
+  tag: {
+    create: (root: string, name: string, target: string, message: string | null) => call('tag:create', root, name, target, message),
+    delete: (root: string, name: string) => call('tag:delete', root, name),
+    push: (root: string, remote: string, name: string, opId: string) => call('tag:push', root, remote, name, opId),
+    deleteRemote: (root: string, remote: string, name: string, opId: string) => call('tag:deleteRemote', root, remote, name, opId)
+  },
+  remotes: {
+    add: (root: string, name: string, url: string) => call('remote:add', root, name, url),
+    setUrl: (root: string, name: string, url: string, push: boolean) => call('remote:setUrl', root, name, url, push),
+    remove: (root: string, name: string) => call('remote:remove', root, name),
+    rename: (root: string, oldName: string, newName: string) => call('remote:rename', root, oldName, newName),
+    prune: (root: string, name: string, opId: string) => call('remote:prune', root, name, opId)
+  },
+  conflicts: {
+    state: (root: string) => call('conflicts:state', root),
+    versions: (root: string, path: string) => call('conflicts:versions', root, path),
+    acceptSide: (root: string, paths: string[], side: 'yours' | 'theirs') => call('conflicts:acceptSide', root, paths, side),
+    resolveSubmodule: (root: string, path: string, sha: string) => call('conflicts:resolveSubmodule', root, path, sha),
+    markResolved: (root: string, paths: string[]) => call('conflicts:markResolved', root, paths),
+    delete: (root: string, paths: string[]) => call('conflicts:delete', root, paths),
+    save: (root: string, path: string, text: string, encoding: FileContent['encoding']) => call('conflicts:save', root, path, text, encoding),
+    autoResolve: (root: string, paths: string[] | null) => call('conflicts:autoResolve', root, paths),
+    mergeTool: (root: string, path: string) => call('conflicts:mergeTool', root, path),
+    preview: (root: string, ref: string) => call('conflicts:preview', root, ref),
+    getRerere: (root: string) => call('conflicts:getRerere', root),
+    setRerere: (root: string, enabled: boolean) => call('conflicts:setRerere', root, enabled),
+    configuredTool: (root: string) => call('conflicts:configuredTool', root)
+  },
+  os: {
+    integration: () => call('os:integration'),
+    setExplorerMenu: (enable: boolean) => call('os:setExplorerMenu', enable),
+    setFileManagerScripts: (enable: boolean) => call('os:setFileManagerScripts', enable)
+  },
+  update: {
+    check: () => call('update:check'),
+    install: (opId: string) => call('update:install', opId)
+  },
+  op: {
+    state: (root: string) => call('op:state', root),
+    continue: (root: string, message: string | null) => call('op:continue', root, message),
+    skip: (root: string) => call('op:skip', root),
+    abort: (root: string) => call('op:abort', root)
   },
   log: {
     open: (root: string, query: LogQuery) => call('log:open', root, query),
@@ -117,7 +200,8 @@ export const api = {
   },
   dialog: {
     pickFolder: (title: string, defaultPath?: string) => call('dialog:pickFolder', title, defaultPath),
-    pickPaths: (title: string, defaultPath: string, kind: 'files' | 'folders') => call('dialog:pickPaths', title, defaultPath, kind)
+    pickPaths: (title: string, defaultPath: string, kind: 'files' | 'folders') => call('dialog:pickPaths', title, defaultPath, kind),
+    saveText: (title: string, defaultName: string, content: string) => call('dialog:saveText', title, defaultName, content)
   },
   shell: {
     openInFileManager: (path: string) => call('shell:openInFileManager', path),

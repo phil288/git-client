@@ -16,7 +16,7 @@ export interface RunOptions {
   onStderrLine?: (line: string) => void
   /** Exit codes that are not errors (default: [0]). */
   okExitCodes?: number[]
-  /** Skip the Git Console (for very chatty background polling). Default false. */
+  /** Automatic background refresh: still logged, but flagged so the console can hide it. */
   quiet?: boolean
 }
 
@@ -90,7 +90,7 @@ export class GitRunner {
       return Promise.reject(new AppError('Operation cancelled', 'CANCELLED'))
     }
 
-    const logEntry = opts.quiet ? null : this.logger.start(cwd ?? null, args)
+    const logEntry = this.logger.start(cwd ?? null, args, opts.quiet === true)
     const fullArgs = [...baseArgs(process.platform), ...args]
     const command = formatCommand(args)
 

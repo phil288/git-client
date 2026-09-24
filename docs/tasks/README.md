@@ -8,3 +8,10 @@ Decision records per task (not a changelog). Copy [`_TEMPLATE.md`](_TEMPLATE.md)
 | 2026-09-24 | [Linux one-line installer (install.sh)](2026-09-24-install-sh.md) | done |
 | 2026-09-24 | [Distribution files (workflows, install.ps1, NSIS)](2026-09-24-distribution-files.md) | done |
 | 2026-09-24 | [M2 & M3 — log, graph, filters](2026-09-24-milestone-2-3-log-filters.md) | done |
+| 2026-09-24 | [M4 — branches](2026-09-24-milestone-4-branches.md) | done |
+| 2026-09-24 | [M5 — history rewriting](2026-09-24-milestone-5-history-rewriting.md) | done |
+| 2026-09-24 | [M6 — local changes & commit](2026-09-24-milestone-6-local-changes.md) | done |
+| 2026-09-24 | [M7 — stash, history, blame, tags, remotes](2026-09-24-milestone-7-stash-history-tags-remotes.md) | done |
+| 2026-09-24 | [M8 — conflict resolution](2026-09-24-milestone-8-conflicts.md) | done |
+| 2026-09-24 | [Renderer performance pass](2026-09-24-renderer-performance.md) | done |
+| 2026-09-24 | [M9 — polish, OS integration, performance](2026-09-24-milestone-9-polish.md) | done |
