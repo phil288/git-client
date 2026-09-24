@@ -43,6 +43,9 @@ test('create a worktree, merge it into main with cleanup, force-remove a dirty l
   writeFileSync(join(wt, 'b.txt'), 'feature\n')
   git(wt, 'add', '.')
   git(wt, 'commit', '-q', '-m', 'feature')
+  // This tab's branches panel marks main as checked out in another (the main) worktree.
+  await expect(page.locator('[data-testid="branch-row"][data-ref="refs/heads/main"]').first().getByTestId('branch-worktree')).toBeVisible()
+  await expect(page.locator('[data-testid="branch-row"][data-ref="refs/heads/feat/e2e"]').first().getByTestId('branch-worktree')).toHaveCount(0)
   await page.getByTestId('bar-merge').click()
   await expect(page.getByTestId('wt-merge-target')).toHaveValue('main')
   await expect(page.getByTestId('wt-merge-cleanup')).toBeChecked()

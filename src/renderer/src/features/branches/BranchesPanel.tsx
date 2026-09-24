@@ -1,17 +1,19 @@
 import { useMemo, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Cloud, CloudOff, Download, Folder, GitBranch, Plus, Search, Star, Tag } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Cloud, CloudOff, Download, Folder, FolderTree, GitBranch, Plus, Search, Star, Tag } from 'lucide-react'
 import { fuzzyFilter } from '@shared/fuzzy'
 import type { LogQuery, Ref } from '@shared/types'
 import { api } from '@/lib/api'
 import { checkoutFlow, deleteBranchesFlow, fetchFlow, refToTarget } from '@/lib/gitOps'
 import { run } from '@/lib/notify'
+import { openRepoPath } from '@/lib/repoActions'
 import { cn, isPrimaryModifier } from '@/lib/utils'
 import { useTabUi } from '@/hooks/useTabUi'
 import { openModal } from '@/stores/modals'
 import type { TabRef } from '@/stores/tabs'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { Input } from '@/components/ui/input'
+import { useWorktrees } from '../worktrees/WorktreeDialogs'
 import { BranchMenu } from './BranchMenu'
 
 interface TreeNode {
@@ -62,6 +64,12 @@ export function BranchesPanel({ tab, refs, currentBranch, query, setQuery }: Pro
   const prefs = usePrefs(root)
   const recent = useQuery({ queryKey: ['repo', root, 'recentBranches'], queryFn: () => api.branch.recent(root) })
   const favorites = useMemo(() => new Set(prefs.data?.favorites ?? []), [prefs.data])
+  const worktrees = useWorktrees(root)
+  // Local branches checked out in another worktree (this tab's own branch is already shown in bold).
+  const worktreeOf = useMemo(
+    () => new Map((worktrees.data ?? []).filter((w) => w.branch && w.branch !== currentBranch).map((w) => [w.branch!, w])),
+    [worktrees.data, currentBranch]
+  )
   // Multi-selection (Ctrl/Cmd+click toggles, Shift+click selects a range) for bulk deletion.
   const [sel, setSel] = useState<Set<string>>(new Set())
   const [anchor, setAnchor] = useState<string | null>(null)
@@ -125,6 +133,7 @@ export function BranchesPanel({ tab, refs, currentBranch, query, setQuery }: Pro
 
   const row = (r: Ref, label: string, depth: number) => {
     const isCurrent = r.kind === 'local' && r.short === currentBranch
+    const wt = r.kind === 'local' ? worktreeOf.get(r.short) : undefined
     const filtered = query.revs.includes(r.name)
     const selected = sel.has(r.name)
     if (!order.current.includes(r.name)) order.current.push(r.name)
@@ -161,6 +170,19 @@ export function BranchesPanel({ tab, refs, currentBranch, query, setQuery }: Pro
               <GitBranch className={cn('size-3.5 shrink-0', isCurrent ? 'text-accent' : 'text-[var(--ref-local)]')} />
             )}
             <span className={cn('truncate', isCurrent && 'font-semibold')}>{label}</span>
+            {wt && (
+              <button
+                className={cn('shrink-0 rounded hover:text-fg', wt.prunable ? 'text-danger' : 'text-muted')}
+                title={`Checked out in worktree ${wt.path}${wt.isMain ? ' (main)' : ''}${wt.prunable ? ' (missing, prunable)' : ''}\nClick to open it`}
+                data-testid="branch-worktree"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  void openRepoPath(wt.path, 'new-tab')
+                }}
+              >
+                <FolderTree className="size-3" />
+              </button>
+            )}
             {r.kind === 'local' && (r.ahead > 0 || r.behind > 0) && (
               <span className="flex shrink-0 items-center text-[11px] text-muted" title={`${r.ahead} to push, ${r.behind} to pull`}>
                 {r.ahead > 0 && (
