@@ -140,6 +140,7 @@ Everything in the scripts can also be pointed at a mirror: `GITCLIENT_RELEASES_U
 | 8 | Conflicts: banner, conflicts dialog with correct Yours/Theirs, auto-resolve, 3-way merge editor, special types, merge-tree preview, rerere | done |
 | 9 | Settings, auto-fetch, jump list, Explorer/Nautilus entries, error handling, 100k-commit performance | done |
 | 10 | CI + release workflows, stable assets + SHA256SUMS, install.sh, install.ps1, update check | done |
+| — | Worktrees: list, create (new/existing branch), open in tab, lock/unlock, prune, remove (`-f -f` force), merge into main with worktree + branch cleanup | done |
 
 ## Requirements
 

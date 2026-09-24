@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, Archive, ExternalLink, FileClock, GitCommitHorizontal, GitCommitVertical, History, Loader2, ScrollText, X } from 'lucide-react'
+import { AlertTriangle, Archive, ExternalLink, FileClock, FolderTree, GitCommitHorizontal, GitCommitVertical, History, Loader2, ScrollText, X } from 'lucide-react'
 import { api } from '@/lib/api'
 import { openRepoPath } from '@/lib/repoActions'
 import { cn } from '@/lib/utils'
@@ -13,9 +13,10 @@ import { FileHistoryView } from '../history/FileHistoryView'
 import { StashView } from '../stash/StashView'
 import { CommitMenu } from '../log/CommitMenu'
 import { LogView, useRefs } from '../log/LogView'
+import { LinkedWorktreeBar, WorktreesView } from '../worktrees/WorktreesView'
 import { OperationBanner } from './OperationBanner'
 
-export type RepoViewKind = 'log' | 'commit' | 'stash' | 'history' | 'blame'
+export type RepoViewKind = 'log' | 'commit' | 'stash' | 'worktrees' | 'history' | 'blame'
 
 interface StripeItem {
   id: RepoViewKind
@@ -27,7 +28,8 @@ interface StripeItem {
 const STRIPE: StripeItem[] = [
   { id: 'commit', label: 'Commit', icon: <GitCommitHorizontal className="size-4" />, shortcut: 'Ctrl+K' },
   { id: 'log', label: 'Git Log', icon: <History className="size-4" /> },
-  { id: 'stash', label: 'Stashes', icon: <Archive className="size-4" /> }
+  { id: 'stash', label: 'Stashes', icon: <Archive className="size-4" /> },
+  { id: 'worktrees', label: 'Worktrees', icon: <FolderTree className="size-4" /> }
 ]
 
 export function useRepoInfo(root: string) {
@@ -139,10 +141,12 @@ export function RepoView({ tab }: { tab: TabRef }) {
             </button>
           </div>
         )}
+        {r.isLinkedWorktree && <LinkedWorktreeBar root={tab.path} />}
         <OperationBanner root={tab.path} />
         <div className="min-h-0 flex-1" data-testid="repo-branch" data-branch={r.branch ?? ''}>
           {view === 'commit' && <ChangesView tab={tab} />}
           {view === 'stash' && <StashView tab={tab} />}
+          {view === 'worktrees' && <WorktreesView tab={tab} />}
           {view === 'history' && historyPath && <FileHistoryView key={historyPath} tab={tab} path={historyPath} />}
           {view === 'blame' && blamePath && <BlameView key={`${blamePath}@${blameRev}`} tab={tab} path={blamePath} rev={blameRev} />}
           {view === 'log' && (

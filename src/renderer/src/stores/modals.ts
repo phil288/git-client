@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Commit, Ref, UpdateInfo } from '@shared/types'
+import type { Commit, Ref, UpdateInfo, WorktreeEntry } from '@shared/types'
 
 /** Parametrised dialogs; one at a time, rendered by <ModalHost/>. */
 export type Modal =
@@ -17,6 +17,9 @@ export type Modal =
   | { kind: 'stashCreate'; root: string }
   | { kind: 'newTag'; root: string; target: string; label: string }
   | { kind: 'remotes'; root: string }
+  | { kind: 'addWorktree'; root: string; start?: string }
+  | { kind: 'removeWorktree'; root: string; worktree: WorktreeEntry }
+  | { kind: 'mergeWorktree'; root: string; worktree: WorktreeEntry }
   | { kind: 'conflicts'; root: string }
   | { kind: 'mergeEditor'; root: string; path: string }
   | { kind: 'settings' }

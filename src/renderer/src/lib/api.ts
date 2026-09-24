@@ -1,5 +1,5 @@
 import type { EventChannel, InvokeArgs, InvokeChannel, InvokeResult, IpcEventMap } from '@shared/ipc'
-import type { CloneRequest, ErrorInfo, FileContent, LogQuery, MergeMode, PullMode, PushOptions, RepoGroup, RepoPrefs, ResetMode, RewritePlan, SessionState, Settings } from '@shared/types'
+import type { CloneRequest, ErrorInfo, FileContent, LogQuery, MergeMode, PullMode, PushOptions, RepoGroup, RepoPrefs, ResetMode, RewritePlan, SessionState, Settings, WorktreeForce } from '@shared/types'
 
 /** Error carrying git's stderr and the failed command across IPC. */
 export class ApiError extends Error {
@@ -130,6 +130,17 @@ export const api = {
     remove: (root: string, name: string) => call('remote:remove', root, name),
     rename: (root: string, oldName: string, newName: string) => call('remote:rename', root, oldName, newName),
     prune: (root: string, name: string, opId: string) => call('remote:prune', root, name, opId)
+  },
+  worktree: {
+    list: (root: string) => call('worktree:list', root),
+    suggestPath: (root: string, name: string) => call('worktree:suggestPath', root, name),
+    defaultBranch: (root: string) => call('worktree:defaultBranch', root),
+    add: (root: string, path: string, start: string, newBranch: string | null) => call('worktree:add', root, path, start, newBranch),
+    remove: (root: string, path: string, force: WorktreeForce) => call('worktree:remove', root, path, force),
+    lock: (root: string, path: string, reason: string | null) => call('worktree:lock', root, path, reason),
+    unlock: (root: string, path: string) => call('worktree:unlock', root, path),
+    prune: (root: string) => call('worktree:prune', root),
+    mergeInto: (root: string, source: string, target: string, mode: MergeMode) => call('worktree:mergeInto', root, source, target, mode)
   },
   conflicts: {
     state: (root: string) => call('conflicts:state', root),

@@ -34,6 +34,8 @@ export type ErrorCode =
   | 'NOT_MERGED'
   /** Working tree must be clean for this operation. */
   | 'DIRTY'
+  /** Worktree is locked (removal needs `-f -f`). */
+  | 'LOCKED'
   | 'UNKNOWN'
 
 /** Envelope for every invoke() round-trip. The renderer unwraps it. */
@@ -560,6 +562,36 @@ export interface PushOptions {
   setUpstream: boolean
   forceWithLease: boolean
   tags: boolean
+}
+
+// ---------------------------------------------------------------------------
+// Worktrees
+// ---------------------------------------------------------------------------
+
+export interface WorktreeEntry {
+  /** Absolute path of the worktree's root. */
+  path: string
+  /** HEAD commit; null for an unborn branch. */
+  head: string | null
+  /** Short branch name; null when detached or bare. */
+  branch: string | null
+  detached: boolean
+  bare: boolean
+  /** The main worktree (owns the shared .git). Cannot be removed. */
+  isMain: boolean
+  locked: boolean
+  lockReason: string | null
+  /** Its directory is gone; `git worktree prune` drops the record. */
+  prunable: boolean
+}
+
+/** Number of `-f` flags for `git worktree remove`: 1 discards changes, 2 also overrides a lock. */
+export type WorktreeForce = 0 | 1 | 2
+
+export interface WorktreeMergeResult {
+  outcome: OpOutcome
+  /** Worktree the merge ran in (where the target is checked out); null when fast-forwarded by ref update. */
+  mergedIn: string | null
 }
 
 // ---------------------------------------------------------------------------

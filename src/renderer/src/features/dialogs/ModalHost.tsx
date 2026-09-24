@@ -14,6 +14,7 @@ import { ShortcutsDialog } from '../settings/ShortcutsDialog'
 import { UpdateDialog } from '../settings/UpdateDialog'
 import { NewTagDialog, RemotesDialog, StashCreateDialog } from '../stash/M7Dialogs'
 import { FixupTargetDialog, InteractiveRebaseDialog, ReflogDialog, ResetDialog } from '../rewrite/RewriteDialogs'
+import { AddWorktreeDialog, MergeWorktreeDialog, RemoveWorktreeDialog } from '../worktrees/WorktreeDialogs'
 
 /** Renders the current parametrised dialog (see stores/modals). */
 export function ModalHost() {
@@ -48,6 +49,12 @@ export function ModalHost() {
       return <NewTagDialog {...m} />
     case 'remotes':
       return <RemotesDialog {...m} />
+    case 'addWorktree':
+      return <AddWorktreeDialog {...m} />
+    case 'removeWorktree':
+      return <RemoveWorktreeDialog {...m} />
+    case 'mergeWorktree':
+      return <MergeWorktreeDialog {...m} />
     case 'conflicts':
       return <ConflictsDialog {...m} />
     case 'mergeEditor':
