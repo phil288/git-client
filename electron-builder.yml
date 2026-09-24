@@ -1,0 +1,83 @@
+# electron-builder configuration. Distribution details (stable asset names,
+# GitHub publishing, PATH/Explorer integration) are completed in milestones 9–10.
+appId: io.github.gitclient.app
+productName: GitClient
+executableName: gitclient
+copyright: Copyright © 2026 GitClient contributors
+
+directories:
+  buildResources: build
+  output: dist
+
+files:
+  - out/**
+  - package.json
+  - '!**/*.map'
+extraResources:
+  - from: build/icon.png
+    to: icon.png
+
+asar: true
+# No native modules: git runs as an external process.
+npmRebuild: false
+
+linux:
+  # Stable, version-less asset names so /releases/latest/download/<asset>
+  # never changes (install.sh relies on this).
+  artifactName: gitclient-linux-${arch}.${ext}
+  target:
+    - AppImage
+    - deb
+    - tar.gz
+  category: Development
+  icon: build/icon.png
+  synopsis: Git client modeled on the JetBrains IDE Git tooling
+  description: Cross-platform Git client with a commit graph, branches, interactive rebase and a 3-way merge tool.
+  maintainer: GitClient contributors <noreply@users.noreply.github.com>
+  # Window association: app_id / WM_CLASS matches the .desktop file name.
+  syncDesktopName: true
+  desktop:
+    entry:
+      Keywords: git;vcs;version control;
+
+# ${arch} is "amd64" for deb and "x86_64" for AppImage, so those two get
+# explicit x64 names. An arm64 build overrides them on the command line, e.g.
+#   electron-builder --linux --arm64 -c.deb.artifactName=gitclient-linux-arm64.deb \
+#     -c.appImage.artifactName=gitclient-linux-arm64.AppImage
+appImage:
+  artifactName: gitclient-linux-x64.AppImage
+
+deb:
+  artifactName: gitclient-linux-x64.deb
+  # Default Electron runtime deps plus git itself. "a | b" lets apt pick the
+  # t64 variants on Ubuntu 24.04.
+  depends:
+    - git
+    - libgtk-3-0 | libgtk-3-0t64
+    - libnotify4
+    - libnss3
+    - libxss1
+    - libxtst6
+    - xdg-utils
+    - libatspi2.0-0 | libatspi2.0-0t64
+    - libuuid1
+    - libsecret-1-0
+
+win:
+  artifactName: gitclient-windows-${arch}-setup.${ext}
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.png
+
+nsis:
+  # Per-user install into %LOCALAPPDATA%\Programs: no admin rights needed.
+  oneClick: true
+  perMachine: false
+  allowElevation: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: GitClient
+  deleteAppDataOnUninstall: false
+
+publish: null

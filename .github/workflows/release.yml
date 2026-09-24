@@ -1,0 +1,184 @@
+name: Release
+
+# Push a tag that matches package.json, e.g. "npm version 1.2.0" (commits and
+# tags v1.2.0), then: git push --follow-tags
+on:
+  push:
+    tags:
+      - 'v*'
+
+# electron-builder and gh create the release and upload assets with GITHUB_TOKEN.
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ github.ref_name }}
+
+jobs:
+  verify-version:
+    name: Tag matches package.json
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare tag and version
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "$TAG" != "v$version" ]; then
+            echo "::error::Tag $TAG does not match package.json version $version. Push tag v$version, or set \"version\" to ${TAG#v} in package.json, commit, and re-tag."
+            exit 1
+          fi
+          echo "Tag $TAG matches package.json version $version"
+
+  # One draft release up front: parallel electron-builder jobs then all upload
+  # into it (no race creating duplicate releases), and nobody sees a public
+  # release without SHA256SUMS (install.sh / install.ps1 need it). The
+  # checksums job publishes it at the end.
+  create-release:
+    name: Create draft release
+    needs: verify-version
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Create the draft release (if it does not exist yet)
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; reusing it."
+          else
+            gh release create "$TAG" --draft --verify-tag --title "GitClient $TAG" --generate-notes
+          fi
+
+  build:
+    name: Build (${{ matrix.name }})
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x64 (deb, AppImage, tar.gz)
+            os: ubuntu-latest
+            targets: --linux --x64
+          - name: windows-x64 (nsis)
+            os: windows-latest
+            targets: --win --x64
+    defaults:
+      run:
+        # bash on Windows too: PowerShell splits native arguments such as
+        # -c.publish.owner=x at the dots.
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npx electron-vite build
+
+      # --publish always uploads the installers plus electron-updater metadata
+      # (latest.yml / latest-linux.yml and *.blockmap) to the release for $TAG.
+      # The publish target comes from the command line, so electron-builder.yml
+      # keeps "publish: null" and no <OWNER>/<REPO> placeholder is involved.
+      - name: Package and upload
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Allow re-running a failed job on a release published > 2 h ago.
+          EP_GH_IGNORE_TIME: 'true'
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+        run: >-
+          npx electron-builder ${{ matrix.targets }} --publish always
+          -c.publish.provider=github
+          -c.publish.owner="$OWNER"
+          -c.publish.repo="$REPO"
+          -c.publish.releaseType=release
+
+  # Best effort: cross-built on x64. A failure does not block the release;
+  # install.sh prints a hint when the arm64 asset is missing.
+  build-linux-arm64:
+    name: Build (linux-arm64, best effort)
+    needs: create-release
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npx electron-vite build
+
+      - name: Package and upload
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EP_GH_IGNORE_TIME: 'true'
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+        run: >-
+          npx electron-builder --linux --arm64 --publish always
+          -c.deb.artifactName=gitclient-linux-arm64.deb
+          -c.appImage.artifactName=gitclient-linux-arm64.AppImage
+          -c.publish.provider=github
+          -c.publish.owner="$OWNER"
+          -c.publish.repo="$REPO"
+          -c.publish.releaseType=release
+
+  checksums:
+    name: SHA256SUMS and publish
+    needs: [build, build-linux-arm64]
+    # Run even if the arm64 build failed, but never when an x64 build failed.
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Download the user-facing assets
+        run: |
+          mkdir assets
+          # Only installers/archives: not SHA256SUMS itself, latest*.yml or *.blockmap.
+          gh release download "$TAG" --dir assets \
+            --pattern '*.deb' --pattern '*.AppImage' --pattern '*.tar.gz' --pattern '*-setup.exe'
+          for required in gitclient-linux-x64.deb gitclient-linux-x64.AppImage \
+            gitclient-linux-x64.tar.gz gitclient-windows-x64-setup.exe; do
+            if [ ! -f "assets/$required" ]; then
+              echo "::error::Release $TAG is missing $required"
+              exit 1
+            fi
+          done
+          ls -l assets
+
+      - name: Generate SHA256SUMS
+        run: |
+          cd assets
+          # sha256sum format ("<hash>  <name>"), sorted by file name.
+          find . -maxdepth 1 -type f -printf '%f\n' | LC_ALL=C sort | xargs -d '\n' sha256sum -- > ../SHA256SUMS
+          cat ../SHA256SUMS
+
+      - name: Upload SHA256SUMS
+        run: gh release upload "$TAG" SHA256SUMS --clobber
+
+      - name: Publish the release
+        run: |
+          # v1.2.0-beta.1 style tags become pre-releases, so /releases/latest
+          # (used by install.sh, install.ps1) keeps pointing at a stable release.
+          case "$TAG" in
+            *-*) gh release edit "$TAG" --draft=false --prerelease ;;
+            *) gh release edit "$TAG" --draft=false --latest ;;
+          esac

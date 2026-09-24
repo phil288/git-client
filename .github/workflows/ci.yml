@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch (or PR) cancels the older run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    name: Linux (typecheck, lint, tests, e2e)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+
+      # shellcheck is preinstalled on the Ubuntu runner images.
+      - name: shellcheck install.sh
+        run: shellcheck install.sh
+
+      # Electron needs a display (xvfb) and cannot use the Chromium sandbox
+      # from node_modules on the runner (e2e/smoke.spec.ts adds --no-sandbox
+      # for tests only when CI or E2E_NO_SANDBOX is set).
+      - name: End-to-end tests
+        run: xvfb-run -a npm run test:e2e
+        env:
+          E2E_NO_SANDBOX: '1'
+
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  windows:
+    name: Windows (typecheck, tests, install.ps1)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      # The runner image sets core.autocrlf=true globally; keep LF files and
+      # keep git repositories created by the integration tests byte-exact.
+      - name: Disable CRLF conversion
+        run: git config --global core.autocrlf false
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+      # install.ps1 must parse under Windows PowerShell 5.1 (rejects PS7-only
+      # syntax such as ??, ternaries and &&) as well as PowerShell 7, and
+      # -Help must run without touching the network.
+      - name: install.ps1 parses and runs -Help (Windows PowerShell 5.1)
+        shell: powershell
+        run: |
+          $tokens = $null; $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile("$PWD\install.ps1", [ref]$tokens, [ref]$errors) | Out-Null
+          if ($errors) { $errors | ForEach-Object { Write-Host "::error file=install.ps1,line=$($_.Extent.StartLineNumber)::$($_.Message)" }; exit 1 }
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Help
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: install.ps1 parses and runs -Help (PowerShell 7)
+        shell: pwsh
+        run: |
+          $tokens = $null; $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile("$PWD\install.ps1", [ref]$tokens, [ref]$errors) | Out-Null
+          if ($errors) { $errors | ForEach-Object { Write-Host "::error file=install.ps1,line=$($_.Extent.StartLineNumber)::$($_.Message)" }; exit 1 }
+          pwsh -NoProfile -File ./install.ps1 -Help
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: PSScriptAnalyzer (install.ps1)
+        shell: pwsh
+        run: |
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+          Install-Module PSScriptAnalyzer -Force -Scope CurrentUser
+          $results = Invoke-ScriptAnalyzer -Path ./install.ps1 -Severity Error
+          if ($results) {
+            $results | Format-Table -AutoSize | Out-String -Width 200 | Write-Host
+            $results | ForEach-Object { Write-Host "::error file=install.ps1,line=$($_.Line)::$($_.RuleName): $($_.Message)" }
+            exit 1
+          }
+          Write-Host 'PSScriptAnalyzer: no errors'
