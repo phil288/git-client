@@ -20,6 +20,7 @@ import { registerBranchHandlers } from './handlers/branches'
 import { registerRewriteHandlers } from './handlers/rewrite'
 import { registerWorkingTreeHandlers } from './handlers/workingTree'
 import { registerM7Handlers } from './handlers/m7'
+import { registerWorktreeHandlers } from './handlers/worktrees'
 import { registerConflictHandlers } from './handlers/conflicts'
 import { initEditors } from './git/editors'
 import type { MainContext } from './context'
@@ -330,6 +331,7 @@ async function main(): Promise<void> {
   registerRewriteHandlers(ctx)
   registerWorkingTreeHandlers(ctx)
   registerM7Handlers(ctx)
+  registerWorktreeHandlers(ctx)
   registerConflictHandlers(ctx, () => (gitStatus.state === 'missing' ? [0, 0, 0] : gitStatus.git.versionParts))
 
   // ---------------------------------------------------------------------------

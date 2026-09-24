@@ -16,3 +16,4 @@ Decision records per task (not a changelog). Copy [`_TEMPLATE.md`](_TEMPLATE.md)
 | 2026-09-24 | [Renderer performance pass](2026-09-24-renderer-performance.md) | done |
 | 2026-09-24 | [M9 — polish, OS integration, performance](2026-09-24-milestone-9-polish.md) | done |
 | 2026-09-24 | [Fix diff editor model-dispose error](2026-09-24-diff-editor-dispose-error.md) | done |
+| 2026-09-24 | [Worktree management (create, remove -f -f, merge into main)](2026-09-24-worktree-management.md) | done |

@@ -44,7 +44,10 @@ import type {
   RepoGroup,
   ScanResult,
   SessionState,
-  Settings
+  Settings,
+  WorktreeEntry,
+  WorktreeForce,
+  WorktreeMergeResult
 } from './types'
 
 /**
@@ -214,6 +217,19 @@ export interface IpcInvokeMap {
   'remote:rename': [[root: string, oldName: string, newName: string], void]
   'remote:prune': [[root: string, name: string, opId: string], void]
 
+  // Worktrees
+  'worktree:list': [[root: string], WorktreeEntry[]]
+  /** Free sibling path `<main>-<slug>` for a new worktree named after `name`. */
+  'worktree:suggestPath': [[root: string, name: string], string]
+  'worktree:defaultBranch': [[root: string], string | null]
+  /** newBranch null checks out `start`; returns the new worktree's normalised path. */
+  'worktree:add': [[root: string, path: string, start: string, newBranch: string | null], string]
+  'worktree:remove': [[root: string, path: string, force: WorktreeForce], void]
+  'worktree:lock': [[root: string, path: string, reason: string | null], void]
+  'worktree:unlock': [[root: string, path: string], void]
+  'worktree:prune': [[root: string], void]
+  'worktree:mergeInto': [[root: string, source: string, target: string, mode: MergeMode], WorktreeMergeResult]
+
   // M8 — conflicts
   'conflicts:state': [[root: string], ConflictState]
   'conflicts:versions': [[root: string, path: string], ConflictVersions]
@@ -382,6 +398,15 @@ const invokeChannelRecord = {
   'remote:remove': true,
   'remote:rename': true,
   'remote:prune': true,
+  'worktree:list': true,
+  'worktree:suggestPath': true,
+  'worktree:defaultBranch': true,
+  'worktree:add': true,
+  'worktree:remove': true,
+  'worktree:lock': true,
+  'worktree:unlock': true,
+  'worktree:prune': true,
+  'worktree:mergeInto': true,
   'conflicts:state': true,
   'conflicts:versions': true,
   'conflicts:acceptSide': true,

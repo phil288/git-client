@@ -30,6 +30,9 @@ export function BranchMenu({ root, r, currentBranch, favorite, onToggleFavorite 
     <>
       {!isCurrent && <ContextMenuItem onSelect={() => void checkoutFlow(root, refToTarget(r))}>Checkout</ContextMenuItem>}
       <ContextMenuItem onSelect={() => openModal({ kind: 'newBranch', root, start: r.name, startLabel: name })}>New Branch from ‘{name}’…</ContextMenuItem>
+      {r.kind !== 'remote' && (
+        <ContextMenuItem onSelect={() => openModal({ kind: 'addWorktree', root, start: name })}>New Worktree from ‘{name}’…</ContextMenuItem>
+      )}
       {!isCurrent && r.kind === 'local' && currentBranch && (
         <ContextMenuItem onSelect={() => void rebaseFlow(root, currentBranch, name)}>Checkout and Rebase onto ‘{cur}’</ContextMenuItem>
       )}
