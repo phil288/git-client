@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { app, BrowserWindow, shell, type IpcMainInvokeEvent } from 'electron'
+import { app, BrowserWindow, screen, shell, type IpcMainInvokeEvent } from 'electron'
+import { restorableBounds, type WindowState } from './windowState'
 
 const DEV_URL = process.env.ELECTRON_RENDERER_URL
 
@@ -25,12 +26,22 @@ function isSafeExternal(url: string): boolean {
   }
 }
 
-export function createMainWindow(): BrowserWindow {
+const MIN_SIZE = { width: 800, height: 500 }
+
+/**
+ * `saved` restores the last size/position/maximized state; `onClose` receives
+ * the state to persist when the window closes.
+ */
+export function createMainWindow(saved: WindowState, onClose: (state: WindowState) => void): BrowserWindow {
+  const bounds = restorableBounds(
+    saved.bounds,
+    screen.getAllDisplays().map((d) => d.workArea),
+    MIN_SIZE
+  )
   const win = new BrowserWindow({
-    width: 1400,
-    height: 900,
-    minWidth: 800,
-    minHeight: 500,
+    ...(bounds ?? { width: 1400, height: 900 }),
+    minWidth: MIN_SIZE.width,
+    minHeight: MIN_SIZE.height,
     show: false,
     title: 'GitClient',
     autoHideMenuBar: false,
@@ -47,7 +58,19 @@ export function createMainWindow(): BrowserWindow {
     }
   })
 
-  win.once('ready-to-show', () => win.show())
+  win.once('ready-to-show', () => {
+    if (saved.maximized) win.maximize()
+    win.show()
+  })
+  // Track the un-maximized geometry ourselves: on Linux getNormalBounds() of a
+  // maximized window includes the frame, so the window would grow each restart.
+  let normalBounds = bounds
+  const track = (): void => {
+    if (!win.isMaximized() && !win.isMinimized() && !win.isFullScreen()) normalBounds = win.getBounds()
+  }
+  win.on('resize', track)
+  win.on('move', track)
+  win.on('close', () => onClose({ bounds: normalBounds, maximized: win.isMaximized() }))
 
   // No popups: links to the web open in the default browser.
   win.webContents.setWindowOpenHandler(({ url }) => {

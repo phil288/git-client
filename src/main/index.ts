@@ -338,7 +338,7 @@ async function main(): Promise<void> {
   // Window lifecycle
   // ---------------------------------------------------------------------------
   const openWindow = (): void => {
-    mainWindow = createMainWindow()
+    mainWindow = createMainWindow(store.get('windowState'), (state) => store.set('windowState', state))
     rendererReady = false
     // A reload re-runs the renderer bootstrap, which calls takePendingOpens again.
     mainWindow.webContents.on('did-start-loading', () => (rendererReady = false))

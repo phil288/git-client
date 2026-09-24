@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { app } from 'electron'
 import Store, { type Schema } from 'electron-store'
 import type Conf from 'conf'
+import { DEFAULT_WINDOW_STATE, type WindowState } from './windowState'
 import { DEFAULT_SETTINGS, type RecentRepo, type RepoGroup, type RepoPrefs, type SessionState, type Settings } from '@shared/types'
 
 export interface PersistedState {
@@ -12,11 +13,26 @@ export interface PersistedState {
   settings: Settings
   /** Keyed by pathKey(repo root). */
   repoPrefs: Record<string, RepoPrefs>
+  windowState: WindowState
 }
 
 const nullableString = { type: ['string', 'null'] } as const
 
+const rect = {
+  type: 'object',
+  required: ['x', 'y', 'width', 'height'],
+  properties: { x: { type: 'number' }, y: { type: 'number' }, width: { type: 'number' }, height: { type: 'number' } }
+} as const
+
 const schema: Schema<PersistedState> = {
+  windowState: {
+    type: 'object',
+    default: DEFAULT_WINDOW_STATE,
+    properties: {
+      bounds: { anyOf: [rect, { type: 'null' }] },
+      maximized: { type: 'boolean' }
+    }
+  },
   recents: {
     type: 'array',
     default: [],
