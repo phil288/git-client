@@ -1,3 +1,4 @@
+import type { TagEntry } from '@shared/types'
 import { AppError } from './errors'
 import { progressPercent, type Progress } from './branches'
 import type { GitRunner } from './runner'
@@ -6,6 +7,33 @@ function name(n: string, what: string): string {
   const v = n.trim()
   if (!v || v.startsWith('-')) throw new AppError(`Invalid ${what}: ${n}`, 'INVALID_ARGUMENT')
   return v
+}
+
+/** Fields NUL-separated, records separated by RS (the annotation message may span lines). */
+const TAG_FORMAT = ['%(refname:short)', '%(objecttype)', '%(objectname)', '%(*objectname)', '%(taggername)', '%(creatordate:unix)', '%(*subject)', '%(subject)', '%(contents)'].join('%00') + '%1e'
+
+export function parseTags(out: string): TagEntry[] {
+  const tags: TagEntry[] = []
+  for (const rec of out.split('\x1e')) {
+    const [name = '', type = '', oid = '', peeled = '', tagger = '', date = '', peeledSubject = '', subject = '', ...contents] = rec.replace(/^\n/, '').split('\0')
+    if (!name) continue
+    const annotated = type === 'tag'
+    tags.push({
+      name,
+      hash: peeled || oid,
+      annotated,
+      tagger: annotated ? tagger.replace(/\s*<[^>]*>$/, '') || null : null,
+      date: Number(date) || 0,
+      message: annotated ? contents.join('\0').replace(/\n+$/, '') : '',
+      commitSubject: annotated ? peeledSubject : subject
+    })
+  }
+  return tags
+}
+
+export async function listTags(runner: GitRunner, root: string): Promise<TagEntry[]> {
+  const r = await runner.run(['for-each-ref', '--sort=-creatordate', `--format=${TAG_FORMAT}`, 'refs/tags'], { cwd: root })
+  return parseTags(r.stdout)
 }
 
 export async function createTag(runner: GitRunner, root: string, tag: string, target: string, message: string | null): Promise<void> {

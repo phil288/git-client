@@ -49,6 +49,7 @@ export function registerM7Handlers(ctx: MainContext): void {
   })
   handle('history:file', (_e, r0, p) => fileHistory(runner, root(r0), str(p, 'path')))
   handle('history:blame', (_e, r0, p, rev) => blame(runner, root(r0), str(p, 'path'), assert.nullableString(rev, 'rev')))
+  handle('tag:list', (_e, r0) => tr.listTags(runner, root(r0)))
   handle('tag:create', (_e, r0, name, target, msg) => {
     const r = root(r0)
     return mutate(r, () => tr.createTag(runner, r, str(name, 'name'), str(target, 'target'), assert.nullableString(msg, 'message')))

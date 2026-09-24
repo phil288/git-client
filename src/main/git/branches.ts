@@ -218,12 +218,15 @@ async function logRange(runner: GitRunner, root: string, range: string): Promise
 export async function compare(runner: GitRunner, root: string, a: string, b: string): Promise<CompareResult> {
   const ra = assertName(a, 'revision')
   const rb = assertName(b, 'revision')
-  const [onlyA, onlyB, files] = await Promise.all([
+  const [onlyA, onlyB, files, counts, base] = await Promise.all([
     logRange(runner, root, `${rb}..${ra}`),
     logRange(runner, root, `${ra}..${rb}`),
-    changedFiles(runner, root, rb, ra)
+    changedFiles(runner, root, rb, ra),
+    runner.run(['rev-list', '--left-right', '--count', '--end-of-options', `${ra}...${rb}`, '--'], { cwd: root }),
+    runner.run(['merge-base', '--end-of-options', ra, rb], { cwd: root, okExitCodes: [0, 1] })
   ])
-  return { onlyA, onlyB, files }
+  const [countA = 0, countB = 0] = counts.stdout.trim().split(/\s+/).map(Number)
+  return { onlyA, onlyB, countA, countB, mergeBase: base.stdout.trim() || null, files }
 }
 
 // ---------------------------------------------------------------------------

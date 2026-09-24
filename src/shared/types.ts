@@ -416,9 +416,14 @@ export type MergeMode = 'default' | 'no-ff' | 'ff-only' | 'squash'
 export type PullMode = 'merge' | 'rebase' | 'ff-only'
 
 export interface CompareResult {
-  /** Commits in `a` but not in `b`. */
+  /** Commits in `a` but not in `b` (newest first, capped at 1000; see countA). */
   onlyA: Commit[]
   onlyB: Commit[]
+  /** Exact number of commits in `a` but not in `b` (onlyA may be truncated). */
+  countA: number
+  countB: number
+  /** Best common ancestor, null for unrelated histories. */
+  mergeBase: string | null
   files: FileChange[]
 }
 
@@ -597,6 +602,22 @@ export interface WorktreeMergeResult {
 // ---------------------------------------------------------------------------
 // Stash, history, blame (M7)
 // ---------------------------------------------------------------------------
+
+export interface TagEntry {
+  /** Short name, e.g. v1.2.0. */
+  name: string
+  /** Commit the tag points to (peeled; the tag object itself for tags of non-commits). */
+  hash: string
+  annotated: boolean
+  /** Tagger for annotated tags, null for lightweight ones. */
+  tagger: string | null
+  /** Tagger date for annotated tags, committer date of the commit otherwise (unix seconds). */
+  date: number
+  /** Annotation message (annotated tags only, '' otherwise). */
+  message: string
+  /** Subject of the tagged commit. */
+  commitSubject: string
+}
 
 export interface StashEntry {
   index: number

@@ -50,6 +50,11 @@ export function BranchMenu({ root, r, currentBranch, favorite, onToggleFavorite 
           </ContextMenuItem>
         </>
       )}
+      {isCurrent && (
+        <ContextMenuItem onSelect={() => openModal({ kind: 'compare', root, a: r.name, aLabel: name, b: 'HEAD', bLabel: cur })}>
+          Compare with…
+        </ContextMenuItem>
+      )}
       <ContextMenuItem onSelect={() => openModal({ kind: 'worktreeDiff', root, rev: r.name, label: name })}>Show Diff with Working Tree</ContextMenuItem>
       <ContextMenuSeparator />
       {r.kind === 'local' && (

@@ -11,6 +11,7 @@ import type {
   MergePreview,
   FileHistoryEntry,
   StashEntry,
+  TagEntry,
   FileHunks,
   WorkingStatus,
   OperationState,
@@ -207,6 +208,8 @@ export interface IpcInvokeMap {
   'stash:branch': [[root: string, name: string, index: number], void]
   'history:file': [[root: string, path: string], FileHistoryEntry[]]
   'history:blame': [[root: string, path: string, rev: string | null], BlameLine[]]
+  /** All tags, newest first. */
+  'tag:list': [[root: string], TagEntry[]]
   'tag:create': [[root: string, name: string, target: string, message: string | null], void]
   'tag:delete': [[root: string, name: string], void]
   'tag:push': [[root: string, remote: string, name: string, opId: string], void]
@@ -389,6 +392,7 @@ const invokeChannelRecord = {
   'stash:branch': true,
   'history:file': true,
   'history:blame': true,
+  'tag:list': true,
   'tag:create': true,
   'tag:delete': true,
   'tag:push': true,

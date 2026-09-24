@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { newerThan, repoSlug } from '@shared/versions'
+import { compareVersionNames, newerThan, repoSlug } from '@shared/versions'
 
 describe('update helpers', () => {
   it('extracts the GitHub slug and rejects placeholders', () => {
@@ -16,5 +16,19 @@ describe('update helpers', () => {
     expect(newerThan('1.0.0', '1.0.0-beta.1')).toBe(true)
     expect(newerThan('1.0.0-beta.2', '1.0.0-beta.1')).toBe(true)
     expect(newerThan('0.9.0', '1.0.0')).toBe(false)
+  })
+
+  it('orders tag names by version', () => {
+    const tags = ['v1.9.0', 'v2.0.0', 'v1.10.0', 'v2.0.0-rc.2', 'v2.0.0-rc.10', 'v0.1', 'release-2024-01', 'release-2024-02']
+    expect([...tags].sort(compareVersionNames)).toEqual([
+      'release-2024-01',
+      'release-2024-02',
+      'v0.1',
+      'v1.9.0',
+      'v1.10.0',
+      'v2.0.0-rc.2',
+      'v2.0.0-rc.10',
+      'v2.0.0'
+    ])
   })
 })

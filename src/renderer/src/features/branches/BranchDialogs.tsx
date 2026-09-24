@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { ArrowLeftRight } from 'lucide-react'
 import type { Commit, MergeMode, Ref } from '@shared/types'
 import { WORKTREE } from '@shared/types'
 import { api, ApiError, errorInfo } from '@/lib/api'
@@ -8,14 +9,17 @@ import { checkoutFlow, mergeFlow, refreshRepo, reportOutcome } from '@/lib/gitOp
 import { formatDate, shortHash } from '@/lib/format'
 import { notifyError } from '@/lib/notify'
 import { cn, newId } from '@/lib/utils'
+import { showInLog } from '@/lib/views'
 import { useAppStore } from '@/stores/app'
 import { confirm } from '@/stores/dialogs'
+import { useEpoch } from '@/stores/repoEpoch'
 import { closeModal } from '@/stores/modals'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input, Label } from '@/components/ui/input'
 import { ChangesBrowser } from '../common/ChangesBrowser'
+import { RefSelect, type RefChoice } from '../common/RefSelect'
 import { useRefs } from '../log/LogView'
 
 function useOpen() {
@@ -191,12 +195,17 @@ export function MergeDialog({ root, ref, label, current }: { root: string; ref: 
   )
 }
 
-function CommitList({ commits, empty }: { commits: Commit[]; empty: string }) {
+function CommitList({ commits, total, empty, onOpen }: { commits: Commit[]; total: number; empty: string; onOpen?(c: Commit): void }) {
   if (commits.length === 0) return <div className="p-3 text-muted">{empty}</div>
   return (
-    <div className="py-1">
+    <div className="py-1" data-testid="compare-commits">
       {commits.map((c) => (
-        <div key={c.hash} className="flex gap-2 px-3 py-0.5 text-[13px] hover:bg-hover">
+        <div
+          key={c.hash}
+          className="flex gap-2 px-3 py-0.5 text-[13px] hover:bg-hover"
+          title={onOpen ? 'Double-click to show in the Log' : undefined}
+          onDoubleClick={() => onOpen?.(c)}
+        >
           <span className="font-mono text-xs text-muted">{shortHash(c.hash)}</span>
           <span className="truncate">{c.subject}</span>
           <span className="ml-auto shrink-0 text-xs text-muted">
@@ -204,38 +213,104 @@ function CommitList({ commits, empty }: { commits: Commit[]; empty: string }) {
           </span>
         </div>
       ))}
+      {total > commits.length && <div className="px-3 py-1 text-xs text-muted">… and {total - commits.length} older commits</div>}
     </div>
   )
 }
 
-export function CompareDialog({ root, a, aLabel, b, bLabel }: { root: string; a: string; aLabel: string; b: string; bLabel: string }) {
+/** Commits on each side and the file diff between two revisions (branches, tags, HEAD, hashes). */
+export function ComparePanel({ root, a, b, onOpenCommit }: { root: string; a: RefChoice; b: RefChoice; onOpenCommit?(c: Commit): void }) {
   const [tab, setTab] = useState<'a' | 'b' | 'files'>('a')
-  const q = useQuery({ queryKey: ['repo', root, 'compare', a, b], queryFn: () => api.branch.compare(root, a, b) })
+  const epoch = useEpoch(root)
+  const q = useQuery({ queryKey: ['repo', root, 'compare', a.rev, b.rev, epoch], queryFn: () => api.branch.compare(root, a.rev, b.rev) })
   const tabs = [
-    { id: 'a' as const, label: `In ‘${aLabel}’ but not ‘${bLabel}’ (${q.data?.onlyA.length ?? '…'})` },
-    { id: 'b' as const, label: `In ‘${bLabel}’ but not ‘${aLabel}’ (${q.data?.onlyB.length ?? '…'})` },
+    { id: 'a' as const, label: `In ‘${a.label}’ but not ‘${b.label}’ (${q.data?.countA ?? '…'})` },
+    { id: 'b' as const, label: `In ‘${b.label}’ but not ‘${a.label}’ (${q.data?.countB ?? '…'})` },
     { id: 'files' as const, label: `Files (${q.data?.files.length ?? '…'})` }
   ]
   return (
+    <div className="flex h-full min-h-0 flex-col gap-2">
+      <div className="flex items-center gap-1 border-b border-border-strong">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            className={cn('px-3 py-1 text-[13px]', tab === t.id ? 'border-b-2 border-accent font-medium' : 'text-muted')}
+            onClick={() => setTab(t.id)}
+            data-testid={`compare-tab-${t.id}`}
+          >
+            {t.label}
+          </button>
+        ))}
+        {q.data && (
+          <span className="ml-auto truncate pr-2 text-xs text-muted" data-testid="compare-summary">
+            {q.data.countA === 0 && q.data.countB === 0
+              ? 'Same commit'
+              : q.data.mergeBase
+                ? `Common ancestor ${shortHash(q.data.mergeBase)}`
+                : 'No common history'}
+          </span>
+        )}
+      </div>
+      <div className="min-h-0 flex-1 overflow-auto rounded border border-border-strong bg-bg">
+        {q.isError && <div className="p-3 text-danger">{q.error.message}</div>}
+        {q.data && tab === 'a' && <CommitList commits={q.data.onlyA} total={q.data.countA} empty="Nothing" onOpen={onOpenCommit} />}
+        {q.data && tab === 'b' && <CommitList commits={q.data.onlyB} total={q.data.countB} empty="Nothing" onOpen={onOpenCommit} />}
+        {tab === 'files' && (
+          <ChangesBrowser
+            key={`${a.rev}\0${b.rev}`}
+            root={root}
+            files={q.data?.files ?? []}
+            leftRev={b.rev}
+            rightRev={a.rev}
+            leftLabel={b.label}
+            rightLabel={a.label}
+            loading={q.isLoading}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** Compare two revisions; both sides can be changed to any branch or tag. */
+export function CompareDialog({ root, a: a0, aLabel, b: b0, bLabel }: { root: string; a: string; aLabel: string; b: string; bLabel: string }) {
+  const [a, setA] = useState<RefChoice>({ rev: a0, label: aLabel })
+  const [b, setB] = useState<RefChoice>({ rev: b0, label: bLabel })
+  const head = useQuery({ queryKey: ['repo', root, 'info'], queryFn: () => api.repo.info(root) }).data?.branch
+  return (
     <Dialog {...useOpen()}>
-      <DialogContent className="h-[80vh] max-w-6xl" data-testid="compare-dialog">
+      <DialogContent className="h-[80vh] max-w-6xl" data-testid="compare-dialog" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>
-            Compare ‘{aLabel}’ with ‘{bLabel}’
+            Compare ‘{a.label}’ with ‘{b.label}’
           </DialogTitle>
         </DialogHeader>
-        <div className="flex gap-1 border-b border-border-strong">
-          {tabs.map((t) => (
-            <button key={t.id} className={cn('px-3 py-1 text-[13px]', tab === t.id ? 'border-b-2 border-accent font-medium' : 'text-muted')} onClick={() => setTab(t.id)}>
-              {t.label}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          <RefSelect root={root} value={a} onChange={setA} headLabel={head} testId="compare-a" />
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            title="Swap"
+            onClick={() => {
+              setA(b)
+              setB(a)
+            }}
+            data-testid="compare-swap"
+          >
+            <ArrowLeftRight />
+          </Button>
+          <RefSelect root={root} value={b} onChange={setB} headLabel={head} testId="compare-b" />
         </div>
-        <div className="min-h-0 flex-1 overflow-auto rounded border border-border-strong bg-bg">
-          {q.isError && <div className="p-3 text-danger">{q.error.message}</div>}
-          {q.data && tab === 'a' && <CommitList commits={q.data.onlyA} empty="Nothing" />}
-          {q.data && tab === 'b' && <CommitList commits={q.data.onlyB} empty="Nothing" />}
-          {tab === 'files' && <ChangesBrowser root={root} files={q.data?.files ?? []} leftRev={b} rightRev={a} leftLabel={bLabel} rightLabel={aLabel} loading={q.isLoading} />}
+        <div className="min-h-0 flex-1">
+          <ComparePanel
+            root={root}
+            a={a}
+            b={b}
+            onOpenCommit={(c) => {
+              closeModal()
+              showInLog(c.hash)
+            }}
+          />
         </div>
       </DialogContent>
     </Dialog>
@@ -414,7 +489,7 @@ export function PushDialog({ root, branch: initial }: { root: string; branch?: s
             </div>
             <div className="max-h-72 min-h-24 overflow-auto rounded border border-border-strong bg-bg">
               {outgoing.isLoading && <div className="p-3 text-muted">Loading…</div>}
-              {outgoing.data && <CommitList commits={list} empty="Nothing to push" />}
+              {outgoing.data && <CommitList commits={list} total={list.length} empty="Nothing to push" />}
             </div>
             {behind > 0 && !force && (
               <div className="text-xs text-warning">

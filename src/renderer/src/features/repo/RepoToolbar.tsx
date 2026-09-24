@@ -1,11 +1,21 @@
 import { ArrowDownToLine, ArrowUpFromLine, ChevronDown, RefreshCw } from 'lucide-react'
+import type { Ref } from '@shared/types'
+import { compareVersionNames } from '@shared/versions'
 import { fetchFlow, pullFlow } from '@/lib/gitOps'
+import { queryClient } from '@/lib/queryClient'
 import { undoLastFlow } from '@/lib/rewriteFlows'
 import { openModal } from '@/stores/modals'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
 /** Extra entries contributed by later features (stash, remotes…). */
 export const gitMenuExtras: { items: ((root: string) => React.ReactNode)[] } = { items: [] }
+
+/** Compare dialog for HEAD against the newest tag (or HEAD itself); both sides are editable there. */
+function openCompare(root: string): void {
+  const refs = queryClient.getQueryData<Ref[]>(['repo', root, 'refs']) ?? []
+  const tag = refs.filter((r) => r.kind === 'tag').sort((a, b) => compareVersionNames(b.short, a.short))[0]
+  openModal({ kind: 'compare', root, a: 'HEAD', aLabel: 'HEAD', b: tag?.name ?? 'HEAD', bLabel: tag?.short ?? 'HEAD' })
+}
 
 /** Fetch / Pull / Push for the active repository (title-bar area, like the IDE toolbar). */
 export function RepoToolbar({ root }: { root: string }) {
@@ -30,6 +40,9 @@ export function RepoToolbar({ root }: { root: string }) {
         <DropdownMenuContent align="end" className="min-w-56">
           <DropdownMenuItem onSelect={() => void undoLastFlow(root)}>Undo Last Operation</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => openModal({ kind: 'reflog', root })}>Reflog &amp; Backups…</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => openCompare(root)} data-testid="git-menu-compare">
+            Compare Branches &amp; Tags…
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           {gitMenuExtras.items.map((render, i) => (
             <span key={i}>{render(root)}</span>

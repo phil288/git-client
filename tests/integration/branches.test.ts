@@ -133,6 +133,17 @@ describe('merge / rebase / compare', () => {
     expect(c.onlyA.map((x) => x.subject)).toEqual(['topic 1'])
     expect(c.onlyB.map((x) => x.subject)).toEqual(['main 1'])
     expect(c.files.map((f) => `${f.status} ${f.path}`).sort()).toEqual(['A t.txt', 'D m.txt'])
+    expect([c.countA, c.countB]).toEqual([1, 1])
+    expect(c.mergeBase).toBe(git(r, 'merge-base', 'topic', 'main').trim())
+  })
+
+  it('compares a tag with a branch using full ref names (tag and branch may share a name)', async () => {
+    const r = setup('compare-tag')
+    git(r, 'tag', '-a', 'topic', '-m', 'tag named like the branch', 'main~1')
+    const c = await br.compare(runner, r, 'refs/tags/topic', 'refs/heads/main')
+    expect([c.countA, c.countB]).toEqual([0, 1])
+    expect(c.onlyB.map((x) => x.subject)).toEqual(['main 1'])
+    expect((await br.compare(runner, r, 'refs/heads/main', 'refs/heads/main')).countA).toBe(0)
   })
 })
 

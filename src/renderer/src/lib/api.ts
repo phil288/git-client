@@ -119,6 +119,7 @@ export const api = {
     blame: (root: string, path: string, rev: string | null) => call('history:blame', root, path, rev)
   },
   tag: {
+    list: (root: string) => call('tag:list', root),
     create: (root: string, name: string, target: string, message: string | null) => call('tag:create', root, name, target, message),
     delete: (root: string, name: string) => call('tag:delete', root, name),
     push: (root: string, remote: string, name: string, opId: string) => call('tag:push', root, remote, name, opId),
