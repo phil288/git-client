@@ -2,6 +2,7 @@ import type { MergeMode, PullMode, PushOptions, RepoPrefs } from '@shared/types'
 import type { MainContext } from '../context'
 import * as br from '../git/branches'
 import { AppError } from '../git/errors'
+import { assertNotBeingMerged } from '../git/worktrees'
 import { assert } from '../ipcRegistry'
 import { pathKey } from '../paths'
 
@@ -78,7 +79,13 @@ export function registerBranchHandlers(ctx: MainContext): void {
   })
   handle('branch:delete', (_e, r0, name, force) => {
     const r = root(r0)
-    return mutate(r, () => br.deleteBranch(runner, r, assert.nonEmptyString(name, 'name'), assert.boolean(force, 'force')))
+    const n = assert.nonEmptyString(name, 'name')
+    const f = assert.boolean(force, 'force')
+    return mutate(r, async () => {
+      // A merge in progress (possibly in another worktree) still needs this branch's commits.
+      await assertNotBeingMerged(runner, r, n)
+      return br.deleteBranch(runner, r, n, f)
+    })
   })
   handle('branch:restore', (_e, r0, name, sha) => {
     const r = root(r0)

@@ -20,3 +20,4 @@ Decision records per task (not a changelog). Copy [`_TEMPLATE.md`](_TEMPLATE.md)
 | 2026-09-24 | [Commit view branch picker + stage all](2026-09-24-commit-view-branch-picker-stage-all.md) | done |
 | 2026-09-24 | [Tags view and compare any branches / tags](2026-09-24-tags-view-compare.md) | done |
 | 2026-09-24 | [Remember window size and maximized state](2026-09-24-window-state-persistence.md) | done |
+| 2026-09-24 | [Fix: worktree merge with conflicts could lose commits](2026-09-24-worktree-merge-conflicts.md) | done |

@@ -1,11 +1,12 @@
 import { toast } from 'sonner'
-import type { MergeMode, WorktreeEntry, WorktreeForce } from '@shared/types'
+import type { MergeMode, PendingMerge, WorktreeEntry, WorktreeForce } from '@shared/types'
 import { api, ApiError } from '@/lib/api'
-import { deleteBranchFlow, refreshRepo, reportOutcome } from '@/lib/gitOps'
+import { deleteBranchFlow, refreshRepo } from '@/lib/gitOps'
 import { notifyError } from '@/lib/notify'
 import { openRepoPath } from '@/lib/repoActions'
 import { queryClient } from '@/lib/queryClient'
 import { choose } from '@/stores/dialogs'
+import { openModal } from '@/stores/modals'
 import { useTabsStore } from '@/stores/tabs'
 
 const key = (p: string) => (api.platform() === 'win32' ? p.replace(/\//g, '\\').toLowerCase() : p)
@@ -77,8 +78,32 @@ export async function removeWorktreeFlow(root: string, path: string, force: Work
 
 /** Remove + optional branch delete (safe delete, force only after confirmation, with Restore). */
 export async function removeWorktreeAndBranchFlow(root: string, w: WorktreeEntry, force: WorktreeForce, deleteBranch: boolean): Promise<void> {
+  if (w.branch && (await blockedByPendingMerge(root, w.branch))) return
   const base = await removeWorktreeFlow(root, w.path, force)
   if (base && deleteBranch && w.branch) await deleteBranchFlow(base, w.branch)
+}
+
+/** The unfinished merge (in any worktree) that still needs `branch`, if any. */
+export function pendingMergeOf(merges: PendingMerge[] | undefined, branch: string | null): PendingMerge | undefined {
+  return branch ? merges?.find((m) => m.branches.includes(branch)) : undefined
+}
+
+/** Shows why and returns true when `branch` is part of an unfinished merge (removing/deleting now can lose commits). */
+async function blockedByPendingMerge(root: string, branch: string): Promise<boolean> {
+  let p: PendingMerge | undefined
+  try {
+    p = pendingMergeOf(await api.worktree.pendingMerges(root), branch)
+  } catch (err) {
+    notifyError(err, 'Could not check for merges in progress')
+    return true
+  }
+  if (!p) return false
+  const where = p.path
+  toast.error(`${branch} is being merged into ${p.into ?? 'HEAD'} in ${where} and that merge is not finished. Commit or abort it first.`, {
+    duration: 20_000,
+    action: { label: 'Resolve…', onClick: () => openModal({ kind: 'conflicts', root: where }) }
+  })
+  return true
 }
 
 /**
@@ -100,13 +125,12 @@ export async function mergeWorktreeFlow(root: string, w: WorktreeEntry, target: 
   refreshRepo(root)
   if (res.mergedIn) refreshRepo(res.mergedIn)
   if (res.outcome.status !== 'ok') {
-    reportOutcome(where, res.outcome)
-    if (res.mergedIn && !samePath(res.mergedIn, root)) {
-      toast.info(`The merge is in progress in ${res.mergedIn}.`, {
-        duration: 15_000,
-        action: { label: `Open ${target}`, onClick: () => void openRepoPath(res.mergedIn!, 'new-tab') }
-      })
-    }
+    // Nothing is removed or deleted: the merge is unfinished and still needs the branch.
+    toast.warning(
+      `Merging ${source} into ${target} stopped with conflicts in ${where}. The worktree and branch were kept. ` +
+        `In the conflict tool, “Theirs” is ${source} (your worktree) and “Yours” is ${target}.`,
+      { duration: 30_000, action: { label: 'Resolve…', onClick: () => openModal({ kind: 'conflicts', root: where }) } }
+    )
     return
   }
   toast.success(res.outcome.message)

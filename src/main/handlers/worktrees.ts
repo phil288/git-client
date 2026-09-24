@@ -31,6 +31,7 @@ export function registerWorktreeHandlers(ctx: MainContext): void {
   handle('worktree:list', (_e, r0) => wt.listWorktrees(runner, root(r0)))
   handle('worktree:suggestPath', (_e, r0, name) => wt.suggestWorktreePath(runner, root(r0), assert.string(name, 'name')))
   handle('worktree:defaultBranch', (_e, r0) => wt.defaultBranch(runner, root(r0)))
+  handle('worktree:pendingMerges', (_e, r0) => wt.pendingMerges(runner, root(r0)))
   handle('worktree:add', (_e, r0, path, start, nb) => {
     const r = root(r0)
     return mutate(r, () => wt.addWorktree(runner, r, str(path, 'path'), str(start, 'start'), assert.nullableString(nb, 'newBranch')))
