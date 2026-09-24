@@ -51,6 +51,13 @@ test('opens a repository passed on the command line as a tab', async () => {
   await expect(page.getByTestId('commit-details')).toContainText('initial')
   await page.getByTestId('file-row').first().click()
   await expect(page.getByTestId('diff-viewer')).toBeVisible()
+  // Switching viewer mode remounts Monaco's diff editor; tearing it down must
+  // not surface "TextModel got disposed before DiffEditorWidget model got reset".
+  await page.getByTitle('Unified viewer').click()
+  await page.getByTitle('Side-by-side viewer').click()
+  await expect(page.locator('.monaco-diff-editor')).toBeVisible()
+  await page.waitForTimeout(300)
+  await expect(page.getByText('Unexpected error')).toHaveCount(0)
 
   // Security settings of the renderer.
   const prefs = await app.evaluate(({ BrowserWindow }) => {

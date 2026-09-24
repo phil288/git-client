@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { DiffEditor } from '@monaco-editor/react'
+import { DiffEditor, type DiffOnMount } from '@monaco-editor/react'
 import { Columns2, Rows2, Space, X } from 'lucide-react'
 import type { FileContent } from '@shared/types'
 import { WORKTREE, INDEX } from '@shared/types'
@@ -29,6 +29,24 @@ export function useFileContent(root: string, side: DiffSide) {
         : api.repo.fileContent(root, side.rev, side.path),
     staleTime: mutable ? 0 : Infinity
   })
+}
+
+/**
+ * @monaco-editor/react disposes the text models *before* the diff editor on
+ * unmount, which monaco >= 0.5x rejects ("TextModel got disposed before
+ * DiffEditorWidget model got reset"). Keep the models alive through the
+ * wrapper's cleanup and dispose them ourselves once the editor is gone.
+ */
+const disposeModelsAfterEditor: DiffOnMount = (editor) => {
+  const models = editor.getModel()
+  // The diff widget never fires its own onDidDispose; its inner editor does,
+  // mid-teardown, so defer until the whole widget has released the models.
+  editor.getModifiedEditor().onDidDispose(() =>
+    queueMicrotask(() => {
+      models?.original.dispose()
+      models?.modified.dispose()
+    })
+  )
 }
 
 function placeholder(c: FileContent | undefined): string | null {
@@ -115,6 +133,9 @@ export function DiffViewer({ root, left, right, title, onClose, className }: Pro
             modified={r.data.text}
             language={languageForPath(path)}
             theme={theme}
+            keepCurrentOriginalModel
+            keepCurrentModifiedModel
+            onMount={disposeModelsAfterEditor}
             options={{
               readOnly: true,
               originalEditable: false,
