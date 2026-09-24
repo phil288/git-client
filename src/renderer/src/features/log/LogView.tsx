@@ -65,6 +65,14 @@ export function LogView({ tab, headSha, detached, sidebar, renderMenu }: Props) 
   const refs = useRefs(root)
   const byHash = useMemo(() => refsByHash(refs.data), [refs.data])
 
+  // Drop deleted branches/tags from the Branch filter so it never walks a ref that no longer exists.
+  useEffect(() => {
+    if (!refs.data) return
+    const known = new Set(refs.data.map((r) => r.name))
+    const revs = query.revs.filter((rev) => !/^refs\/(heads|remotes|tags)\//.test(rev) || known.has(rev))
+    if (revs.length !== query.revs.length) setQuery({ ...query, revs })
+  }, [refs.data, query, setQuery])
+
   const selectedCommits = useMemo(
     () =>
       selection.hashes
