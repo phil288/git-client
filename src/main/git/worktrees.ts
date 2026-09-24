@@ -174,6 +174,14 @@ export async function mergeInto(runner: GitRunner, root: string, source: string,
   const t = assertArg(target, 'target branch')
   if (s === t) throw new AppError('Source and target are the same branch.', 'INVALID_ARGUMENT')
   if (mode === 'squash') throw new AppError('Squash merges are not supported here; use Merge from the target worktree.', 'INVALID_ARGUMENT')
+  const tSha = (await runner.run(['rev-parse', '--verify', `refs/heads/${t}^{commit}`], { cwd: root })).stdout.trim()
+  const sSha = (await runner.run(['rev-parse', '--verify', `refs/heads/${s}^{commit}`], { cwd: root })).stdout.trim()
+  const ahead = await commitsToMerge(runner, root, s, t)
+  if (ahead === 0) {
+    // git would answer "Already up to date": say so instead of reporting a merge.
+    return { outcome: { status: 'ok', message: `Nothing to merge: every commit of ${s} is already in ${t}.` }, mergedIn: null, merged: 0 }
+  }
+
   const host = (await listWorktrees(runner, root)).find((w) => w.branch === t && !w.prunable)
   if (host) {
     // Never stack a merge on an unfinished operation: git's refusal would look like fresh conflicts.
@@ -181,12 +189,10 @@ export async function mergeInto(runner: GitRunner, root: string, source: string,
     if (st.operation || st.conflicted.length > 0) {
       throw new AppError(`${st.title || 'An operation with conflicts'} is still in progress in ${host.path}. Resolve and commit it, or abort it, first.`, 'DIRTY')
     }
-    return { outcome: await merge(runner, host.path, s, mode), mergedIn: host.path }
+    const outcome = await merge(runner, host.path, s, mode)
+    return { outcome: outcome.status === 'ok' ? { ...outcome, message: `Merged ${ahead} commit${ahead === 1 ? '' : 's'} of ${s} into ${t}` } : outcome, mergedIn: host.path, merged: ahead }
   }
 
-  const tSha = (await runner.run(['rev-parse', '--verify', `refs/heads/${t}^{commit}`], { cwd: root })).stdout.trim()
-  const sSha = (await runner.run(['rev-parse', '--verify', `refs/heads/${s}^{commit}`], { cwd: root })).stdout.trim()
-  if (tSha === sSha) return { outcome: { status: 'ok', message: `${t} is already up to date with ${s}` }, mergedIn: null }
   const ff = await runner.run(['merge-base', '--is-ancestor', tSha, sSha], { cwd: root, okExitCodes: [0, 1] })
   if (ff.exitCode !== 0 || mode === 'no-ff') {
     throw new AppError(
@@ -195,5 +201,11 @@ export async function mergeInto(runner: GitRunner, root: string, source: string,
     )
   }
   await runner.run(['update-ref', '-m', `merge ${s}: Fast-forward`, `refs/heads/${t}`, sSha, tSha], { cwd: root })
-  return { outcome: { status: 'ok', message: `Fast-forwarded ${t} to ${s}` }, mergedIn: null }
+  return { outcome: { status: 'ok', message: `Fast-forwarded ${t} to ${s} (${ahead} commit${ahead === 1 ? '' : 's'})` }, mergedIn: null, merged: ahead }
+}
+
+/** Number of commits on `source` that `target` does not have yet (what a merge would bring in). */
+export async function commitsToMerge(runner: GitRunner, root: string, source: string, target: string): Promise<number> {
+  const r = await runner.run(['rev-list', '--count', `refs/heads/${assertArg(target, 'target')}..refs/heads/${assertArg(source, 'source')}`, '--'], { cwd: root })
+  return Number(r.stdout.trim()) || 0
 }

@@ -10,3 +10,4 @@ export const showFileHistory = (path: string): void => show({ view: 'history', h
 export const showBlame = (path: string, rev: string | null = null): void => show({ view: 'blame', blamePath: path, blameRev: rev })
 /** Opens the Log and selects `hash` (loading pages until it is found). */
 export const showInLog = (hash: string): void => show({ view: 'log', logPendingGoTo: hash })
+export const showCommitView = (): void => show({ view: 'commit' })

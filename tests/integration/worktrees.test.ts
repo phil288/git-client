@@ -94,9 +94,27 @@ describe('worktrees', () => {
     commitFile(r, 'm.txt', 'main\n', 'main work')
     const res = await wt.mergeInto(runner, p, 'feat', 'main', 'default')
     expect(res.outcome.status).toBe('ok')
-    expect(res.mergedIn).toBe(r)
+    expect(res).toMatchObject({ mergedIn: r, merged: 1 })
     expect(readFileSync(join(r, 'f.txt'), 'utf8')).toBe('feature\n')
     expect(git(r, 'log', '-1', '--format=%P').trim().split(' ')).toHaveLength(2)
+  })
+
+  it('reports "nothing to merge" when the worktree only has uncommitted work', async () => {
+    const r = initRepo(join(root, 'nothing'))
+    const p = await wt.addWorktree(runner, r, join(root, 'nothing-feat'), 'main', 'feat')
+    write(p, 'README.md', 'uncommitted\n')
+    write(p, 'new.txt', 'untracked\n')
+    const before = git(r, 'rev-parse', 'main')
+    const backupsBefore = git(r, 'for-each-ref', 'refs/gitclient-backup')
+    expect(await wt.commitsToMerge(runner, r, 'feat', 'main')).toBe(0)
+    const res = await wt.mergeInto(runner, p, 'feat', 'main', 'default')
+    expect(res).toMatchObject({ merged: 0, mergedIn: null, outcome: { status: 'ok' } })
+    expect(res.outcome.message).toMatch(/Nothing to merge/)
+    expect(git(r, 'rev-parse', 'main')).toBe(before)
+    expect(git(r, 'for-each-ref', 'refs/gitclient-backup')).toBe(backupsBefore)
+    // The uncommitted work is untouched.
+    expect(readFileSync(join(p, 'README.md'), 'utf8')).toBe('uncommitted\n')
+    expect(existsSync(join(p, 'new.txt'))).toBe(true)
   })
 
   it('fast-forwards a target that is not checked out anywhere, refuses a real merge', async () => {

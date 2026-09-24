@@ -137,6 +137,7 @@ export const api = {
     suggestPath: (root: string, name: string) => call('worktree:suggestPath', root, name),
     defaultBranch: (root: string) => call('worktree:defaultBranch', root),
     pendingMerges: (root: string) => call('worktree:pendingMerges', root),
+    commitsToMerge: (root: string, source: string, target: string) => call('worktree:commitsToMerge', root, source, target),
     add: (root: string, path: string, start: string, newBranch: string | null) => call('worktree:add', root, path, start, newBranch),
     remove: (root: string, path: string, force: WorktreeForce) => call('worktree:remove', root, path, force),
     lock: (root: string, path: string, reason: string | null) => call('worktree:lock', root, path, reason),

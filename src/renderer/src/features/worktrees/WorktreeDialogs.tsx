@@ -7,6 +7,7 @@ import { api } from '@/lib/api'
 import { refreshRepo } from '@/lib/gitOps'
 import { notifyError } from '@/lib/notify'
 import { openRepoPath } from '@/lib/repoActions'
+import { showCommitView } from '@/lib/views'
 import { closeModal } from '@/stores/modals'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -281,6 +282,13 @@ export function MergeWorktreeDialog({ root, worktree: w }: { root: string; workt
   const [cleanup, setCleanup] = useState(!w.isMain)
   const t = target ?? (def && def !== w.branch ? def : (locals[0] ?? ''))
   const host = (wts.data ?? []).find((x) => x.branch === t && !x.prunable)
+  const dirty = (changed ?? 0) > 0
+  const aheadQ = useQuery({
+    queryKey: ['repo', root, 'commitsToMerge', w.branch, t],
+    queryFn: () => api.worktree.commitsToMerge(root, w.branch!, t),
+    enabled: !!w.branch && !!t
+  })
+  const ahead = aheadQ.data ?? null
 
   return (
     <Dialog {...useOpen()}>
@@ -319,18 +327,56 @@ export function MergeWorktreeDialog({ root, worktree: w }: { root: string; workt
               </span>
             </label>
           ))}
-          {(changed ?? 0) > 0 && (
+          {ahead === 0 ? (
+            <div className="flex flex-col gap-1.5 rounded border border-danger/40 bg-danger/10 p-2 text-xs" data-testid="wt-merge-nothing">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-danger" />
+                <span>
+                  Nothing to merge: ‘{w.branch}’ has no commits that ‘{t}’ doesn’t already have.
+                  {dirty && (
+                    <>
+                      {' '}
+                      Its {changed} uncommitted change{changed === 1 ? '' : 's'} exist only in this worktree — a merge only moves commits. Commit them first.
+                    </>
+                  )}
+                </span>
+              </div>
+              {dirty && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="self-start"
+                  data-testid="wt-merge-commit-first"
+                  onClick={() => {
+                    closeModal()
+                    void openRepoPath(w.path, 'new-tab').then(showCommitView)
+                  }}
+                >
+                  Commit changes in this worktree…
+                </Button>
+              )}
+            </div>
+          ) : (
+            ahead !== null && (
+              <div className="text-xs" data-testid="wt-merge-count">
+                {ahead} commit{ahead === 1 ? '' : 's'} of ‘{w.branch}’ will be merged into ‘{t}’.
+              </div>
+            )
+          )}
+          {ahead !== 0 && dirty && (
             <div className="flex items-start gap-2 rounded border border-warning/40 bg-warning/10 p-2 text-xs">
               <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-warning" />
-              This worktree has {changed} uncommitted change{changed === 1 ? '' : 's'}; only committed work is merged.
+              This worktree also has {changed} uncommitted change{changed === 1 ? '' : 's'}: they are not merged, and the worktree is kept.
             </div>
           )}
           {!w.isMain && (
             <label className="flex items-start gap-2">
-              <Checkbox className="mt-0.5" checked={cleanup} onCheckedChange={(c) => setCleanup(c === true)} data-testid="wt-merge-cleanup" />
+              <Checkbox className="mt-0.5" checked={cleanup && !dirty} disabled={dirty} onCheckedChange={(c) => setCleanup(c === true)} data-testid="wt-merge-cleanup" />
               <span>
                 Then remove this worktree and delete ‘{w.branch}’
-                <span className="block text-xs text-muted">Only after a clean merge. You are asked before forcing anything.</span>
+                <span className="block text-xs text-muted">
+                  {dirty ? 'Unavailable: the worktree has uncommitted changes.' : 'Only after a clean merge that brought in commits. Never discards anything.'}
+                </span>
               </span>
             </label>
           )}
@@ -341,14 +387,14 @@ export function MergeWorktreeDialog({ root, worktree: w }: { root: string; workt
             Cancel
           </Button>
           <Button
-            disabled={!t}
+            disabled={!t || !ahead}
             data-testid="wt-merge-confirm"
             onClick={() => {
               closeModal()
-              void mergeWorktreeFlow(root, w, t, mode, cleanup)
+              void mergeWorktreeFlow(root, w, t, mode, cleanup && !dirty)
             }}
           >
-            Merge
+            {ahead ? `Merge ${ahead} commit${ahead === 1 ? '' : 's'}` : 'Merge'}
           </Button>
         </DialogFooter>
       </DialogContent>

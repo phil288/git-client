@@ -98,6 +98,10 @@ describe('merge / rebase / compare', () => {
     expect(git(r, 'log', '-1', '--format=%P').trim().split(' ')).toHaveLength(2)
     const backups = await listBackups(runner, r)
     expect(backups[0]).toMatchObject({ branch: 'main', operation: 'merge' })
+    // Merging it again brings nothing: say so instead of "Merged".
+    const again = await br.merge(runner, r, 'topic', 'default')
+    expect(again).toMatchObject({ status: 'ok' })
+    expect(again.message).toMatch(/Nothing to merge/)
   })
 
   it('--ff-only refuses divergent histories; --squash stages without committing', async () => {

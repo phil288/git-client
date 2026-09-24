@@ -228,6 +228,8 @@ export interface IpcInvokeMap {
   'worktree:defaultBranch': [[root: string], string | null]
   /** Unfinished merges in any worktree of the repo, with the branches they still depend on. */
   'worktree:pendingMerges': [[root: string], PendingMerge[]]
+  /** Commits on `source` not yet in `target` (0 = a merge would do nothing). */
+  'worktree:commitsToMerge': [[root: string, source: string, target: string], number]
   /** newBranch null checks out `start`; returns the new worktree's normalised path. */
   'worktree:add': [[root: string, path: string, start: string, newBranch: string | null], string]
   'worktree:remove': [[root: string, path: string, force: WorktreeForce], void]
@@ -409,6 +411,7 @@ const invokeChannelRecord = {
   'worktree:suggestPath': true,
   'worktree:defaultBranch': true,
   'worktree:pendingMerges': true,
+  'worktree:commitsToMerge': true,
   'worktree:add': true,
   'worktree:remove': true,
   'worktree:lock': true,

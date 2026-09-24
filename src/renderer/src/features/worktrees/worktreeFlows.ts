@@ -133,9 +133,24 @@ export async function mergeWorktreeFlow(root: string, w: WorktreeEntry, target: 
     )
     return
   }
+  const changed = await api.repo
+    .quickStatus(w.path)
+    .then((s) => s.changedCount)
+    .catch(() => 0)
+  const uncommitted = changed > 0 ? ` ${changed} uncommitted change${changed === 1 ? '' : 's'} in ${w.path} ${changed === 1 ? 'was' : 'were'} not merged: only commits are merged. Commit them, then merge again.` : ''
+  if (res.merged === 0) {
+    // "Already up to date": nothing moved, so there is nothing to clean up either.
+    toast.warning(`${res.outcome.message}${uncommitted}`, { duration: 30_000 })
+    return
+  }
   toast.success(res.outcome.message)
+  if (changed > 0) {
+    // Cleanup never discards work: a dirty worktree is kept (removing it would need -f -f).
+    toast.warning(`The worktree was kept.${uncommitted}`, { duration: 30_000 })
+    return
+  }
   if (!cleanup || w.isMain) return
-  const base = await removeWorktreeFlow(root, w.path, 0)
+  const base = await removeWorktreeFlow(root, w.path, 0, false)
   if (!base) return
   try {
     // Merged into target, so a safe delete succeeds when run where target is checked out.

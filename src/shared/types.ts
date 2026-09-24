@@ -607,8 +607,10 @@ export interface PendingMerge {
 
 export interface WorktreeMergeResult {
   outcome: OpOutcome
-  /** Worktree the merge ran in (where the target is checked out); null when fast-forwarded by ref update. */
+  /** Worktree the merge ran in (where the target is checked out); null when fast-forwarded by ref update or nothing was merged. */
   mergedIn: string | null
+  /** Commits of the source that were not in the target before the merge. 0 = nothing merged (uncommitted work is never merged). */
+  merged: number
 }
 
 // ---------------------------------------------------------------------------

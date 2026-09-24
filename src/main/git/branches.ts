@@ -191,6 +191,11 @@ export async function setUpstream(runner: GitRunner, root: string, branch: strin
 
 export async function merge(runner: GitRunner, root: string, ref: string, mode: MergeMode): Promise<OpOutcome> {
   const r = assertName(ref, 'revision')
+  // git exits 0 with "Already up to date": report that rather than "Merged".
+  const ahead = await runner.run(['rev-list', '--count', '--end-of-options', `HEAD..${r}`, '--'], { cwd: root, okExitCodes: [0, 128] })
+  if (ahead.exitCode === 0 && Number(ahead.stdout.trim()) === 0) {
+    return { status: 'ok', message: `Nothing to merge: ${r} has no commits that the current branch doesn’t already have.` }
+  }
   await createBackup(runner, root, 'merge')
   const args = ['merge', '--no-edit']
   if (mode === 'no-ff') args.push('--no-ff')
