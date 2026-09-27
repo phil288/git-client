@@ -46,6 +46,11 @@ test('create a worktree, merge it into main with cleanup, force-remove a dirty l
   // This tab's branches panel marks main as checked out in another (the main) worktree.
   await expect(page.locator('[data-testid="branch-row"][data-ref="refs/heads/main"]').first().getByTestId('branch-worktree')).toBeVisible()
   await expect(page.locator('[data-testid="branch-row"][data-ref="refs/heads/feat/e2e"]').first().getByTestId('branch-worktree')).toHaveCount(0)
+  // The commit toolbar's branch picker marks it too.
+  await page.getByTestId('stripe-commit').click()
+  await page.getByTestId('branch-picker').click()
+  await expect(page.getByTestId('branch-picker-item').filter({ hasText: /^main$/ }).getByTestId('branch-picker-worktree')).toBeVisible()
+  await page.keyboard.press('Escape')
   await page.getByTestId('bar-merge').click()
   await expect(page.getByTestId('wt-merge-target')).toHaveValue('main')
   await expect(page.getByTestId('wt-merge-cleanup')).toBeChecked()
