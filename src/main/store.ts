@@ -99,7 +99,8 @@ const schema: Schema<PersistedState> = {
       dateFormat: { enum: ['relative', 'absolute', 'iso'] },
       confirmPush: { type: 'boolean' },
       checkForUpdates: { type: 'boolean' },
-      mergeTool: { type: 'string' }
+      mergeTool: { type: 'string' },
+      worktreeForceRemove: { type: 'boolean' }
     }
   }
 }

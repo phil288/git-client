@@ -109,6 +109,9 @@ export function SettingsDialog() {
           <Row label="Confirm large pushes" help="Destructive actions (hard reset, force push, drop, discard…) always ask">
             <Checkbox checked={s.confirmPush} onCheckedChange={(c) => set('confirmPush', c === true)} />
           </Row>
+          <Row label="Force worktree removal by default" help="Pre-tick “Force (git worktree remove -f -f)” in the Remove Worktree dialog">
+            <Checkbox checked={s.worktreeForceRemove} onCheckedChange={(c) => set('worktreeForceRemove', c === true)} />
+          </Row>
         </Section>
 
         <Section title="Conflicts">

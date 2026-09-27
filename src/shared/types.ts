@@ -195,6 +195,8 @@ export interface Settings {
   checkForUpdates: boolean
   /** External merge tool name for `git mergetool --tool`; '' = git config merge.tool. */
   mergeTool: string
+  /** Initial state of the "Force (-f -f)" checkbox in the Remove Worktree dialog. */
+  worktreeForceRemove: boolean
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -213,7 +215,8 @@ export const DEFAULT_SETTINGS: Settings = {
   dateFormat: 'relative',
   confirmPush: true,
   checkForUpdates: true,
-  mergeTool: ''
+  mergeTool: '',
+  worktreeForceRemove: false
 }
 
 // ---------------------------------------------------------------------------

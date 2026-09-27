@@ -22,3 +22,4 @@ Decision records per task (not a changelog). Copy [`_TEMPLATE.md`](_TEMPLATE.md)
 | 2026-09-24 | [Remember window size and maximized state](2026-09-24-window-state-persistence.md) | done |
 | 2026-09-24 | [Fix: worktree merge with conflicts could lose commits](2026-09-24-worktree-merge-conflicts.md) | done |
 | 2026-09-24 | [Fix: "merge" of uncommitted worktree work faked success and offered force removal](2026-09-24-worktree-merge-nothing.md) | done |
+| 2026-09-27 | [Setting: default state of worktree force removal](2026-09-27-worktree-force-remove-setting.md) | done |

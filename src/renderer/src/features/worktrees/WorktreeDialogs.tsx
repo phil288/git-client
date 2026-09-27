@@ -8,6 +8,7 @@ import { refreshRepo } from '@/lib/gitOps'
 import { notifyError } from '@/lib/notify'
 import { openRepoPath } from '@/lib/repoActions'
 import { showCommitView } from '@/lib/views'
+import { useAppStore } from '@/stores/app'
 import { closeModal } from '@/stores/modals'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -196,7 +197,7 @@ export function RemoveWorktreeDialog({ root, worktree: w }: { root: string; work
   const pending = pendingMergeOf(pendingQ.data, w.branch)
   const dirty = (changed ?? 0) > 0
   const needsForce = dirty || w.locked
-  const [force, setForce] = useState(false)
+  const [force, setForce] = useState(() => useAppStore.getState().settings.worktreeForceRemove)
   const [delBranch, setDelBranch] = useState(w.branch !== null && w.branch !== def)
   useEffect(() => setDelBranch(w.branch !== null && w.branch !== def), [def, w.branch])
 
