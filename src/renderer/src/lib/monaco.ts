@@ -5,6 +5,18 @@
  */
 import * as monaco from 'monaco-editor/editor/editor.api'
 import 'monaco-editor/basic-languages/monaco.contribution'
+// editor.api ships no contributions: add find/replace (Ctrl+F / Ctrl+H) and
+// the editing basics the merge result needs (clipboard, context menu, line
+// and word operations, multi-cursor, comment toggling, cursor undo).
+import 'monaco-editor/features/find/register'
+import 'monaco-editor/features/clipboard/register'
+import 'monaco-editor/features/contextmenu/register'
+import 'monaco-editor/features/linesOperations/register'
+import 'monaco-editor/features/wordOperations/register'
+import 'monaco-editor/features/multicursor/register'
+import 'monaco-editor/features/comment/register'
+import 'monaco-editor/features/cursorUndo/register'
+import 'monaco-editor/features/bracketMatching/register'
 import 'monaco-codicon.css'
 import EditorWorker from 'monaco-editor/editor/editor.worker?worker'
 import { loader } from '@monaco-editor/react'

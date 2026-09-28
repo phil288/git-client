@@ -24,3 +24,4 @@ Decision records per task (not a changelog). Copy [`_TEMPLATE.md`](_TEMPLATE.md)
 | 2026-09-24 | [Fix: "merge" of uncommitted worktree work faked success and offered force removal](2026-09-24-worktree-merge-nothing.md) | done |
 | 2026-09-27 | [Setting: default state of worktree force removal](2026-09-27-worktree-force-remove-setting.md) | done |
 | 2026-09-27 | [Worktree icon in the commit toolbar branch picker](2026-09-27-branch-picker-worktree-icon.md) | done |
+| 2026-09-28 | [Search and editing in the 3-way merge editor](2026-09-28-merge-editor-search-edit.md) | done |

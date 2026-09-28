@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import Editor, { type OnMount } from '@monaco-editor/react'
 import { toast } from 'sonner'
-import { ArrowDown, ArrowUp, Columns3, Eye, RotateCcw, Rows3, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, Columns3, Eye, Replace, RotateCcw, Rows3, Search, X } from 'lucide-react'
 import { hasConflictMarkers, merge3, splitLines, wordDiff, type Merge3Options, type MergeRegion } from '@shared/merge3'
 import {
   anchors,
@@ -43,6 +43,15 @@ const EDITOR_OPTIONS: monaco.editor.IStandaloneEditorConstructionOptions = {
   overviewRulerLanes: 0,
   scrollbar: { alwaysConsumeMouseWheel: false }
 }
+
+/** Open Monaco's find (or find/replace) widget in a pane. */
+function openFind(ed: IEditor | null, replace = false) {
+  if (!ed) return
+  ed.focus()
+  void ed.getAction(replace ? 'editor.action.startFindReplaceAction' : 'actions.find')?.run()
+}
+
+const paneBtn = 'ml-auto flex shrink-0 items-center rounded p-0.5 text-muted hover:bg-hover hover:text-fg'
 
 function chunkClass(c: Chunk, side: 'left' | 'right' | 'result'): string {
   const lines = side === 'left' ? c.ours : side === 'right' ? c.theirs : chunkContent(c)
@@ -625,8 +634,13 @@ function MergeEditorInner({ root, path, state, v, onClose }: Props & { v: Confli
       <div className="flex min-h-0 flex-1">
         {layout === 'side' && (
           <div className="flex min-w-0 flex-1 flex-col">
-            <div className="truncate border-b border-border-strong bg-panel px-2 py-0.5 text-xs">
-              <b>Yours:</b> {state.yours.name} <span className="text-muted">({state.yours.detail})</span>
+            <div className="flex items-center gap-1 border-b border-border-strong bg-panel px-2 py-0.5 text-xs">
+              <span className="truncate">
+                <b>Yours:</b> {state.yours.name} <span className="text-muted">({state.yours.detail})</span>
+              </span>
+              <button className={paneBtn} onClick={() => openFind(left.current)} title="Search in Yours (Ctrl+F)" data-testid="search-left">
+                <Search className="size-3.5" />
+              </button>
             </div>
             <div className="min-h-0 flex-1">
               <Editor path={`merge-left/${path}`} value={v.yours.text} language={language} theme={theme} onMount={onSideMount('left')} options={{ ...EDITOR_OPTIONS, readOnly: true }} />
@@ -635,16 +649,29 @@ function MergeEditorInner({ root, path, state, v, onClose }: Props & { v: Confli
         )}
         {layout === 'side' && strip('left')}
         <div className="flex min-w-0 flex-1 flex-col">
-          <div className="truncate border-b border-border-strong bg-panel px-2 py-0.5 text-xs">
-            <b>Result</b> <span className="text-muted">(editable — F7 / Shift+F7 to navigate, Ctrl+Z undoes actions too)</span>
+          <div className="flex items-center gap-1 border-b border-border-strong bg-panel px-2 py-0.5 text-xs">
+            <span className="truncate">
+              <b>Result</b> <span className="text-muted">(editable — F7 / Shift+F7 to navigate, Ctrl+F search, Ctrl+H replace, Ctrl+Z undoes actions too)</span>
+            </span>
+            <button className={paneBtn} onClick={() => openFind(result.current)} title="Search in Result (Ctrl+F)" data-testid="search-result">
+              <Search className="size-3.5" />
+            </button>
+            <button className={cn(paneBtn, 'ml-0')} onClick={() => openFind(result.current, true)} title="Replace in Result (Ctrl+H)" data-testid="replace-result">
+              <Replace className="size-3.5" />
+            </button>
           </div>
           <div className="min-h-0 flex-1">
             <Editor path={`merge-result/${path}`} value={initial} language={language} theme={theme} onMount={onResultMount} options={{ ...EDITOR_OPTIONS, readOnly: false }} />
           </div>
           {showBase && (
             <div className="flex h-48 shrink-0 flex-col border-t border-border-strong">
-              <div className="bg-panel px-2 py-0.5 text-xs">
-                <b>Base</b> <span className="text-muted">(common ancestor{v.base.exists ? '' : ' — none: both sides added the file'})</span>
+              <div className="flex items-center gap-1 bg-panel px-2 py-0.5 text-xs">
+                <span className="truncate">
+                  <b>Base</b> <span className="text-muted">(common ancestor{v.base.exists ? '' : ' — none: both sides added the file'})</span>
+                </span>
+                <button className={paneBtn} onClick={() => openFind(baseEd.current)} title="Search in Base (Ctrl+F)">
+                  <Search className="size-3.5" />
+                </button>
               </div>
               <div className="min-h-0 flex-1">
                 <Editor
@@ -666,8 +693,13 @@ function MergeEditorInner({ root, path, state, v, onClose }: Props & { v: Confli
         {layout === 'side' && strip('right')}
         {layout === 'side' && (
           <div className="flex min-w-0 flex-1 flex-col">
-            <div className="truncate border-b border-border-strong bg-panel px-2 py-0.5 text-xs">
-              <b>Theirs:</b> {state.theirs.name} <span className="text-muted">({state.theirs.detail})</span>
+            <div className="flex items-center gap-1 border-b border-border-strong bg-panel px-2 py-0.5 text-xs">
+              <span className="truncate">
+                <b>Theirs:</b> {state.theirs.name} <span className="text-muted">({state.theirs.detail})</span>
+              </span>
+              <button className={paneBtn} onClick={() => openFind(right.current)} title="Search in Theirs (Ctrl+F)" data-testid="search-right">
+                <Search className="size-3.5" />
+              </button>
             </div>
             <div className="min-h-0 flex-1">
               <Editor path={`merge-right/${path}`} value={v.theirs.text} language={language} theme={theme} onMount={onSideMount('right')} options={{ ...EDITOR_OPTIONS, readOnly: true }} />

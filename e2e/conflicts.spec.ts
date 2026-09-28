@@ -85,3 +85,41 @@ test('merge conflict: Accept Theirs from the dialog, commit with the prepared me
   expect(readFileSync(join(repo, 'app.txt'), 'utf8')).toContain('line 2 feature')
   await app.close()
 })
+
+test('merge editor: search in each pane, find/replace and manual edits in the result', async () => {
+  const repo = diverged('search')
+  expect(git(repo, 'merge', 'feature/x').ok).toBe(false)
+  const extra = process.env.CI || process.env.E2E_NO_SANDBOX ? ['--no-sandbox'] : []
+  const app = await electron.launch({ args: [APP_DIR, ...extra, repo], env: { ...process.env, GITCLIENT_USER_DATA: join(work, 'ud3') } as Record<string, string> })
+  const page = await app.firstWindow()
+  await page.getByTestId('banner-resolve').click()
+  const dlg = page.getByTestId('conflicts-dialog')
+  await dlg.getByTestId('conflict-row').first().click()
+  await dlg.getByTestId('merge-button').click()
+  const ed = page.getByTestId('merge-editor')
+  await expect(ed.getByTestId('merge-counter')).toContainText('1 conflict')
+
+  // Every pane gets its own find widget.
+  for (const id of ['search-left', 'search-right', 'search-result']) await ed.getByTestId(id).click()
+  await expect(ed.locator('.find-widget.visible')).toHaveCount(3)
+  await page.keyboard.type('line')
+  await expect(ed.locator('.find-widget.visible .matchesCount').last()).toContainText('of')
+
+  // Replace in the result, then type by hand.
+  await page.keyboard.press('Escape')
+  await ed.getByTestId('apply-left-0').click()
+  await ed.getByTestId('apply-right-0').click()
+  await expect(ed.getByTestId('merge-counter')).toContainText('0 conflicts')
+  await ed.getByTestId('replace-result').click()
+  const replaceWidget = ed.locator('.find-widget.visible.replaceToggled')
+  await replaceWidget.locator('.find-part textarea').fill('line 2 main')
+  await replaceWidget.locator('.replace-part textarea').fill('line 2 merged')
+  await replaceWidget.locator('.replace-part textarea').press('Control+Alt+Enter')
+  await page.keyboard.press('Escape')
+  await page.keyboard.press('Control+End')
+  await page.keyboard.type('manual line')
+  await ed.getByTestId('merge-save').click()
+  await expect(page.getByTestId('all-resolved')).toBeVisible()
+  expect(readFileSync(join(repo, 'app.txt'), 'utf8')).toBe('line 1\nline 2 merged\nline 2 feature\nline 3\nmanual line\n')
+  await app.close()
+})
