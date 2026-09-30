@@ -27,3 +27,4 @@ Decision records per task (not a changelog). Copy [`_TEMPLATE.md`](_TEMPLATE.md)
 | 2026-09-28 | [Search and editing in the 3-way merge editor](2026-09-28-merge-editor-search-edit.md) | done |
 | 2026-09-30 | [Worktree count badge on the tool-window stripe](2026-09-30-worktree-count-badge.md) | done |
 | 2026-09-30 | [Reorder repo tabs by drag and drop; pin tabs](2026-09-30-tab-dnd-pin.md) | done |
+| 2026-09-30 | [Fix failing Linux e2e job in CI](2026-09-30-ci-e2e-fix.md) | done |

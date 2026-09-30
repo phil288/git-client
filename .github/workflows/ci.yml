@@ -34,11 +34,18 @@ jobs:
       - name: shellcheck install.sh
         run: shellcheck install.sh
 
+      # A bare Xvfb has no window manager, so BrowserWindow.maximize() is a
+      # no-op there and e2e/window-state.spec.ts cannot pass; openbox handles
+      # the EWMH maximize requests.
+      - name: Install a window manager for e2e
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends openbox
+
       # Electron needs a display (xvfb) and cannot use the Chromium sandbox
       # from node_modules on the runner (e2e/smoke.spec.ts adds --no-sandbox
-      # for tests only when CI or E2E_NO_SANDBOX is set).
+      # for tests only when CI or E2E_NO_SANDBOX is set). openbox starts in the
+      # background while electron-vite builds, well before the first window.
       - name: End-to-end tests
-        run: xvfb-run -a npm run test:e2e
+        run: xvfb-run -a bash -c 'openbox & npm run test:e2e'
         env:
           E2E_NO_SANDBOX: '1'
 
