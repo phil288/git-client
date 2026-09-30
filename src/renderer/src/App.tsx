@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Toaster } from 'sonner'
 import { FolderInput } from 'lucide-react'
-import type { MenuCommand } from '@shared/types'
+import type { MenuCommand, WorktreeEntry } from '@shared/types'
 import { api } from '@/lib/api'
 import { notifyError } from '@/lib/notify'
 import { isMac } from '@/lib/utils'
@@ -98,6 +98,11 @@ function useMainEvents(): void {
         useRepoEpoch.getState().bump(root)
         void queryClient.invalidateQueries({ queryKey: ['repo', root] })
         void queryClient.invalidateQueries({ queryKey: ['quickStatus', root] })
+        // Refs are shared, so a commit in any worktree lands here: refresh the
+        // sibling worktrees' status too (it feeds the tab's dirty dot).
+        for (const w of queryClient.getQueryData<WorktreeEntry[]>(['repo', root, 'worktrees']) ?? []) {
+          if (w.path !== root) void queryClient.invalidateQueries({ queryKey: ['quickStatus', w.path] })
+        }
       }),
       api.on('recents:changed', (state) => queryClient.setQueryData(['recents'], state)),
       api.on('app:openRepo', (req) => void openRepoPath(req.path, req.newTab ? 'new-tab' : 'replace')),

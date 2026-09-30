@@ -83,3 +83,28 @@ test('tabs can be reordered by drag and drop and pinned', async () => {
   await expect(page2.getByTestId('repo-tab').first()).toHaveAttribute('data-pinned', 'true')
   await again.close()
 })
+
+test('a tab shows a dot while any of its worktrees has uncommitted changes', async () => {
+  const repo = join(work, 'delta')
+  const linked = join(work, 'delta-wt')
+  mkdirSync(repo)
+  git(repo, 'init', '-q', '-b', 'main')
+  writeFileSync(join(repo, 'README.md'), '# delta\n')
+  git(repo, 'add', '.')
+  git(repo, 'commit', '-q', '-m', 'initial')
+  git(repo, 'worktree', 'add', '-q', '-b', 'side', linked)
+  // Only the linked worktree is dirty; the tab is on the main one.
+  writeFileSync(join(linked, 'wip.txt'), 'wip\n')
+
+  const app = await launch([repo])
+  const page = await app.firstWindow()
+  const tab = page.locator(`[data-testid="repo-tab"][title^="${repo}"]`)
+  await expect(tab).toHaveCount(1)
+  await expect(tab.getByTestId('repo-tab-dirty')).toBeVisible()
+
+  // Committing in the linked worktree moves a shared ref, which refreshes the dot.
+  git(linked, 'add', '.')
+  git(linked, 'commit', '-q', '-m', 'wip')
+  await expect(tab.getByTestId('repo-tab-dirty')).toHaveCount(0, { timeout: 10_000 })
+  await app.close()
+})

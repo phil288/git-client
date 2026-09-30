@@ -5,6 +5,7 @@ import { useTabsStore, type RepoTab } from '@/stores/tabs'
 import { pinnedCount } from '@shared/tabOrder'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { RepoAvatar } from '../welcome/RepoAvatar'
+import { useDirtyWorktreeCount } from './useDirtyWorktreeCount'
 
 const TAB_DRAG_MIME = 'application/x-gitclient-tab'
 
@@ -111,6 +112,7 @@ function Tab({ tab: t, index: i, active, dragging, dropBefore, dropAfter, onActi
   const closeOthers = useTabsStore((s) => s.closeOthers)
   const closeToRight = useTabsStore((s) => s.closeToRight)
   const setPinned = useTabsStore((s) => s.setPinned)
+  const dirty = useDirtyWorktreeCount(t.path)
 
   return (
     <ContextMenu>
@@ -141,6 +143,13 @@ function Tab({ tab: t, index: i, active, dragging, dropBefore, dropAfter, onActi
           {dropAfter && <span className="absolute inset-y-0 right-0 w-0.5 bg-accent" data-testid="tab-drop-indicator" />}
           <RepoAvatar name={t.name} size={16} className="rounded-[3px]" />
           <span className="truncate">{t.name}</span>
+          {dirty > 0 && (
+            <span
+              className="-ml-1 size-1.5 shrink-0 rounded-full bg-warning"
+              title={dirty === 1 ? 'Uncommitted changes' : `Uncommitted changes in ${dirty} worktrees`}
+              data-testid="repo-tab-dirty"
+            />
+          )}
           {t.pinned ? (
             <button
               className="rounded p-0.5 hover:bg-panel-2"
