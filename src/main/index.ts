@@ -258,7 +258,7 @@ async function main(): Promise<void> {
     store.set('session', {
       tabs: state.tabs
         .filter((t) => typeof t?.path === 'string')
-        .map((t) => ({ path: t.path, ui: t.ui && typeof t.ui === 'object' ? t.ui : {} })),
+        .map((t) => ({ path: t.path, ui: t.ui && typeof t.ui === 'object' ? t.ui : {}, ...(t.pinned === true && { pinned: true }) })),
       activePath: typeof state.activePath === 'string' ? state.activePath : null
     })
   })

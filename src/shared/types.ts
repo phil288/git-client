@@ -162,6 +162,8 @@ export interface TabSession {
   path: string
   /** Opaque per-tab UI state (selected commit, filters, pane sizes...). */
   ui: Record<string, unknown>
+  /** Pinned tabs sit first in the strip and have no close button. */
+  pinned?: boolean
 }
 
 export interface SessionState {

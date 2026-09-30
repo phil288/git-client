@@ -64,7 +64,7 @@ const schema: Schema<PersistedState> = {
     properties: {
       tabs: {
         type: 'array',
-        items: { type: 'object', required: ['path'], properties: { path: { type: 'string' }, ui: { type: 'object' } } }
+        items: { type: 'object', required: ['path'], properties: { path: { type: 'string' }, ui: { type: 'object' }, pinned: { type: 'boolean' } } }
       },
       activePath: nullableString
     }

@@ -26,3 +26,4 @@ Decision records per task (not a changelog). Copy [`_TEMPLATE.md`](_TEMPLATE.md)
 | 2026-09-27 | [Worktree icon in the commit toolbar branch picker](2026-09-27-branch-picker-worktree-icon.md) | done |
 | 2026-09-28 | [Search and editing in the 3-way merge editor](2026-09-28-merge-editor-search-edit.md) | done |
 | 2026-09-30 | [Worktree count badge on the tool-window stripe](2026-09-30-worktree-count-badge.md) | done |
+| 2026-09-30 | [Reorder repo tabs by drag and drop; pin tabs](2026-09-30-tab-dnd-pin.md) | done |
