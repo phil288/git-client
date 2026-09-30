@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { AlertTriangle, GitMerge } from 'lucide-react'
 import { api } from '@/lib/api'
 import { outcomeActions, reportOutcome } from '@/lib/gitOps'
@@ -10,7 +10,14 @@ import { editMessage } from '../rewrite/MessageDialog'
 
 export function useOperationState(root: string) {
   const epoch = useEpoch(root)
-  return useQuery({ queryKey: ['repo', root, 'opState', epoch], queryFn: () => api.op.state(root) })
+  // Keep this repo's last state while an epoch bump refetches: without it the
+  // banner blinks out on every repo change, e.g. mid `merge --continue`.
+  // RepoView is reused across tabs, so never carry over another repo's state.
+  return useQuery({
+    queryKey: ['repo', root, 'opState', epoch],
+    queryFn: () => api.op.state(root),
+    placeholderData: (prev, prevQuery) => (prevQuery?.queryKey[1] === root ? keepPreviousData(prev) : undefined)
+  })
 }
 
 /**

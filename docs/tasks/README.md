@@ -30,3 +30,4 @@ Decision records per task (not a changelog). Copy [`_TEMPLATE.md`](_TEMPLATE.md)
 | 2026-09-30 | [Fix failing Linux e2e job in CI](2026-09-30-ci-e2e-fix.md) | done |
 | 2026-10-01 | [Dirty dot on repo tabs](2026-10-01-tab-dirty-dot.md) | done |
 | 2026-10-01 | [Toasts could not be closed while a dialog was open](2026-10-01-toast-overlap.md) | done |
+| 2026-10-01 | [Operation banner flicker (CI merge-conflict e2e failure)](2026-10-01-operation-banner-flicker.md) | done |
