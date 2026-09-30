@@ -29,6 +29,8 @@ test('create a worktree, merge it into main with cleanup, force-remove a dirty l
   const page = await app.firstWindow()
   await page.getByTestId('log-row').first().waitFor()
 
+  // No linked worktrees yet: the stripe icon carries no count.
+  await expect(page.getByTestId('stripe-worktrees-badge')).toHaveCount(0)
   // Create from the Worktrees view; the suggested folder is a sibling <repo>-<slug>.
   await page.getByTestId('stripe-worktrees').click()
   await page.getByTestId('wt-add').click()
@@ -38,6 +40,7 @@ test('create a worktree, merge it into main with cleanup, force-remove a dirty l
   await page.getByTestId('wt-create').click()
   await expect(page.getByTestId('linked-worktree-bar')).toContainText('feat/e2e')
   expect(existsSync(join(wt, 'a.txt'))).toBe(true)
+  await expect(page.getByTestId('stripe-worktrees-badge')).toHaveText('1')
 
   // Work in the worktree, then merge back into main from its tab and clean up.
   writeFileSync(join(wt, 'b.txt'), 'feature\n')
@@ -68,6 +71,7 @@ test('create a worktree, merge it into main with cleanup, force-remove a dirty l
   await page.getByTitle('Refresh').click()
   const row = page.getByTestId('worktree-row').filter({ hasText: 'dirty' })
   await expect(row).toContainText('locked')
+  await expect(page.getByTestId('stripe-worktrees-badge')).toHaveText('1')
   await row.getByTestId('wt-remove').click()
   const confirmBtn = page.getByTestId('wt-remove-confirm')
   await expect(confirmBtn).toBeDisabled()
@@ -76,5 +80,6 @@ test('create a worktree, merge it into main with cleanup, force-remove a dirty l
   await expect.poll(() => existsSync(wt2)).toBe(false)
   await expect.poll(() => git(repo, 'branch', '--list', 'dirty').trim()).toBe('')
   await expect(page.getByTestId('worktree-row')).toHaveCount(1)
+  await expect(page.getByTestId('stripe-worktrees-badge')).toHaveCount(0)
   await app.close()
 })

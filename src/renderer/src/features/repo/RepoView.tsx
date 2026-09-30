@@ -14,6 +14,7 @@ import { StashView } from '../stash/StashView'
 import { CommitMenu } from '../log/CommitMenu'
 import { LogView, useRefs } from '../log/LogView'
 import { TagsView } from '../tags/TagsView'
+import { useWorktrees } from '../worktrees/WorktreeDialogs'
 import { LinkedWorktreeBar, WorktreesView } from '../worktrees/WorktreesView'
 import { OperationBanner } from './OperationBanner'
 
@@ -49,6 +50,8 @@ export function RepoView({ tab }: { tab: TabRef }) {
   // Poll only while the Commit view is visible; otherwise refresh on focus / repo events.
   const status = useWorkingStatus(tab.path, view === 'commit')
   const changeCount = status.data?.entries.length ?? 0
+  const worktreeCount = useWorktrees(tab.path).data?.filter((w) => !w.isMain).length ?? 0
+  const badges: Partial<Record<RepoViewKind, number>> = { commit: changeCount, worktrees: worktreeCount }
 
   if (info.isLoading) {
     return (
@@ -83,9 +86,12 @@ export function RepoView({ tab }: { tab: TabRef }) {
             data-testid={`stripe-${s.id}`}
           >
             {s.icon}
-            {s.id === 'commit' && changeCount > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 min-w-3.5 rounded-full bg-accent px-0.5 text-center text-[9px] leading-3.5 text-accent-fg">
-                {changeCount > 99 ? '99+' : changeCount}
+            {(badges[s.id] ?? 0) > 0 && (
+              <span
+                className="absolute -right-0.5 -top-0.5 min-w-3.5 rounded-full bg-accent px-0.5 text-center text-[9px] leading-3.5 text-accent-fg"
+                data-testid={`stripe-${s.id}-badge`}
+              >
+                {badges[s.id]! > 99 ? '99+' : badges[s.id]}
               </span>
             )}
           </button>
