@@ -63,7 +63,8 @@ test('rebase conflict: labels, 3-way merge editor, save, continue', async () => 
   await page.getByTestId('continue-op').click()
   await expect(page.getByTestId('operation-banner')).toHaveCount(0)
   expect(readFileSync(join(repo, 'app.txt'), 'utf8')).toBe('line 1\nline 2 main\nline 2 feature\nline 3\n')
-  expect(git(repo, 'log', '--format=%s', '-3').out.trim().split('\n')).toEqual(['Fix login', 'Main change', 'base'])
+  // The banner can vanish during a refresh before `rebase --continue` has finished.
+  await expect.poll(() => git(repo, 'log', '--format=%s', '-3').out.trim().split('\n')).toEqual(['Fix login', 'Main change', 'base'])
   await app.close()
 })
 

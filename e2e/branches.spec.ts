@@ -45,9 +45,9 @@ test('select several branches with Ctrl+click and delete them at once', async ()
   // "unmerged" needs the force-delete confirmation.
   await expect(page.getByTestId('confirm-dialog')).toContainText('not fully merged')
   await page.getByTestId('confirm-dialog').getByRole('button', { name: 'Force Delete' }).click()
-  await expect(row('merged-1')).toHaveCount(0)
-  const left = git(repo, 'branch', '--format=%(refname:short)').trim().split('\n').sort()
-  expect(left).toEqual(['keep', 'main'])
+  // merged-1/2 are gone before the force-delete prompt: wait for the forced delete itself.
+  await expect(row('unmerged')).toHaveCount(0)
+  await expect.poll(() => git(repo, 'branch', '--format=%(refname:short)').trim().split('\n').sort()).toEqual(['keep', 'main'])
   await app.close()
 })
 

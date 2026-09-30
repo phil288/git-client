@@ -20,6 +20,9 @@ test('merge a worktree into main with conflicts keeps every commit', async () =>
   const repo = join(work, 'repo')
   mkdirSync(repo)
   git(repo, 'init', '-q', '-b', 'main')
+  // The app's own git commands commit too; CI runners have no global identity.
+  git(repo, 'config', 'user.name', 'E2E')
+  git(repo, 'config', 'user.email', 'e2e@example.com')
   writeFileSync(join(repo, 'a.txt'), 'base\n')
   git(repo, 'add', '.')
   git(repo, 'commit', '-q', '-m', 'first')

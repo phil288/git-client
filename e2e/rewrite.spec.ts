@@ -22,6 +22,9 @@ test('reword a non-HEAD commit through the scripted interactive rebase (Electron
   const repo = join(work, 'repo')
   mkdirSync(repo)
   git(repo, 'init', '-q', '-b', 'main')
+  // The app's own git commands commit too; CI runners have no global identity.
+  git(repo, 'config', 'user.name', 'E2E')
+  git(repo, 'config', 'user.email', 'e2e@example.com')
   for (const n of [1, 2, 3]) {
     writeFileSync(join(repo, `f${n}.txt`), `${n}\n`)
     git(repo, 'add', '.')
