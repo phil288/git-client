@@ -111,3 +111,12 @@ textarea,
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/*
+ * Radix modals (dialogs, menus) put pointer-events:none on <body>; the toaster
+ * inherits it, so toasts raised while a modal is open could not be hovered,
+ * expanded or closed. Opt the toaster back in.
+ */
+[data-sonner-toaster] {
+  pointer-events: auto;
+}

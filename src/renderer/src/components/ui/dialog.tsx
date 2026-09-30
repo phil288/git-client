@@ -10,7 +10,7 @@ export const DialogClose = DialogPrimitive.Close
 export const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { hideClose?: boolean }
->(({ className, children, hideClose, ...props }, ref) => (
+>(({ className, children, hideClose, onInteractOutside, ...props }, ref) => (
   <DialogPrimitive.Portal>
     <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/40" />
     <DialogPrimitive.Content
@@ -19,6 +19,11 @@ export const DialogContent = React.forwardRef<
         'fixed left-1/2 top-1/2 z-50 flex max-h-[85vh] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col gap-3 rounded-lg border border-border-strong bg-panel p-4 shadow-2xl focus:outline-none',
         className
       )}
+      onInteractOutside={(e) => {
+        // Toasts render outside the dialog: closing or expanding one must not dismiss it.
+        if (e.target instanceof Element && e.target.closest('[data-sonner-toaster]')) e.preventDefault()
+        onInteractOutside?.(e)
+      }}
       {...props}
     >
       {children}
