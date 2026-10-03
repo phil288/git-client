@@ -55,8 +55,16 @@ export async function fileHunks(runner: GitRunner, root: string, path: string): 
 }
 
 export async function stageFiles(runner: GitRunner, root: string, paths: string[]): Promise<void> {
+  checkPaths(paths)
+  // Skip paths with nothing left to stage: a fully staged deletion (`D.`) is in
+  // neither the index nor the worktree, so `git add` fails with "pathspec did not
+  // match any files" and aborts the whole batch.
+  const st = await workingStatus(runner, root)
+  const stageable = new Set(st.entries.filter((e) => e.untracked || e.conflicted || e.worktree !== '.').map((e) => e.path))
+  const todo = paths.filter((p) => stageable.has(p))
+  if (todo.length === 0) return
   // -A: also stages deletions of the given paths.
-  await runner.run(['add', '-A', ...pathspecArgs()], { cwd: root, input: pathInput(checkPaths(paths)) })
+  await runner.run(['add', '-A', ...pathspecArgs()], { cwd: root, input: pathInput(todo) })
 }
 
 export async function unstageFiles(runner: GitRunner, root: string, paths: string[]): Promise<void> {

@@ -49,6 +49,13 @@ describe('staging', () => {
     await wt.unstageFiles(runner, r, ['README.md'])
     expect(git(r, 'status', '--porcelain').trim()).toBe('?? x.txt')
 
+    // Already-staged deletion mixed with a stageable file: no "pathspec did not match".
+    git(r, 'rm', '-q', 'README.md')
+    await wt.stageFiles(runner, r, ['README.md', 'x.txt'])
+    expect(git(r, 'diff', '--cached', '--name-status').trim().split('\n').sort()).toEqual(['A\tx.txt', 'D\tREADME.md'])
+    await wt.unstageFiles(runner, r, ['README.md', 'x.txt'])
+    git(r, 'checkout', '--', 'README.md')
+
     const fresh = join(root, 'unborn')
     git(root, 'init', '-q', fresh)
     write(fresh, 'n.txt', 'n')
