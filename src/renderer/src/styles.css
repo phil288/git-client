@@ -114,9 +114,12 @@ textarea,
 
 /*
  * Radix modals (dialogs, menus) put pointer-events:none on <body>; the toaster
- * inherits it, so toasts raised while a modal is open could not be hovered,
- * expanded or closed. Opt the toaster back in.
+ * inherits it, so toasts raised while a modal is open could not be closed.
+ * Opt only the toast's buttons (close ×, actions) back in: the toast body stays
+ * click-through inside a modal so it never blocks the dialog footer beneath it
+ * (e.g. "Continue rebase" right after a merge-editor save toast). Hovering a
+ * button still bubbles mouseenter to the toast, so it pauses/expands.
  */
-[data-sonner-toaster] {
+[data-sonner-toast] button {
   pointer-events: auto;
 }

@@ -38,8 +38,8 @@ test('a toast raised while a modal dialog is open can be closed without closing 
 
   const toast = page.locator('[data-sonner-toast]').filter({ hasText: 'Could not create the branch' })
   await expect(toast).toBeVisible()
-  // Radix sets pointer-events:none on <body> while a modal is open; the toaster must opt back in.
-  await toast.hover()
+  // Radix sets pointer-events:none on <body> while a modal is open; the toast's buttons must opt back in
+  // (the toast body stays click-through so it never blocks dialog buttons beneath it).
   await toast.locator('[data-close-button]').click()
   await expect(toast).toHaveCount(0)
   // Clicking the toast is not an "outside click" that dismisses the dialog.
