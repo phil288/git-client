@@ -37,7 +37,10 @@ test('window reopens with its last size and maximized state', async () => {
   // Un-maximizing returns to the size chosen before maximizing.
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.unmaximize())
   await expect.poll(() => isMaximized(app)).toBe(false)
-  const normal = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.getBounds())
-  expect([normal.width, normal.height]).toEqual([1000, 700])
+  // The window manager applies the restored geometry asynchronously: isMaximized() can flip
+  // before the resize lands (CI once read the maximized 1280x1005 here), so poll the size too.
+  await expect
+    .poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.getBounds()).then((b) => [b.width, b.height]))
+    .toEqual([1000, 700])
   await app.close()
 })

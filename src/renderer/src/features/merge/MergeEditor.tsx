@@ -51,6 +51,15 @@ function openFind(ed: IEditor | null, replace = false) {
   void ed.getAction(replace ? 'editor.action.startFindReplaceAction' : 'actions.find')?.run()
 }
 
+const toggleBtn = 'flex size-4 items-center justify-center rounded border text-[12px] font-bold leading-none shadow'
+
+/** Whether a side of the chunk carries a change of its own (and so gets +/− toggles). */
+function hasSideChange(c: Chunk, side: 'left' | 'right'): boolean {
+  if (c.kind === 'conflict') return true
+  if (c.kind === 'same') return side === 'left' // identical sides: one toggle covers both
+  return side === 'left' ? c.kind === 'ours' : c.kind === 'theirs'
+}
+
 const paneBtn = 'ml-auto flex shrink-0 items-center rounded p-0.5 text-muted hover:bg-hover hover:text-fg'
 
 function chunkClass(c: Chunk, side: 'left' | 'right' | 'result'): string {
@@ -87,6 +96,9 @@ const STYLE = `
 .mc-zone { font-family: var(--font-mono); font-size: 12px; padding: 4px 8px; border-left: 3px solid var(--danger); background: var(--panel); overflow: hidden; }
 .mc-zone button { font-family: var(--font-sans); font-size: 11px; margin-right: 6px; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--border-strong); background: var(--bg); color: var(--fg); cursor: pointer; }
 .mc-zone pre { margin: 2px 0 6px; white-space: pre; }
+.mc-zone button.mc-toggle { font-family: var(--font-mono); font-weight: 700; padding: 0 5px; margin: 0 2px 0 0; }
+.mc-zone button.mc-on-keep { background: var(--success); border-color: var(--success); color: #fff; }
+.mc-zone button.mc-on-drop { background: var(--danger); border-color: var(--danger); color: #fff; }
 `
 
 interface Props {
@@ -387,15 +399,39 @@ function MergeEditorInner({ root, path, state, v, onClose }: Props & { v: Confli
       zones.current = []
       if (layout !== 'inline') return
       chunks.forEach((c, i) => {
-        if (c.kind !== 'conflict' || isResolved(c)) return
+        if (c.kind !== 'conflict') return
         const b = blockOf(i)
         if (!b) return
         const dom = document.createElement('div')
         dom.className = 'mc-zone'
         const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;')
-        dom.innerHTML =
-          `<div><b>Yours: ${esc(state.yours.name)}</b> <span style="opacity:.7">(${esc(state.yours.detail)})</span></div><pre>${esc(c.ours.join('\n')) || '(nothing)'}</pre>` +
-          `<div><b>Theirs: ${esc(state.theirs.name)}</b> <span style="opacity:.7">(${esc(state.theirs.detail)})</span></div><pre>${esc(c.theirs.join('\n')) || '(nothing)'}</pre>`
+        // One header per side with +/− toggles (keep / remove that side), then its text.
+        for (const side of ['left', 'right'] as const) {
+          const info = side === 'left' ? state.yours : state.theirs
+          const st = side === 'left' ? c.left : c.right
+          const head = document.createElement('div')
+          head.innerHTML = `<b>${side === 'left' ? 'Yours' : 'Theirs'}: ${esc(info.name)}</b> <span style="opacity:.7">(${esc(info.detail)})</span> `
+          for (const [label, on, action] of [
+            ['+', st === 'applied', side === 'left' ? 'applyLeft' : 'applyRight'],
+            ['−', st === 'ignored', side === 'left' ? 'removeLeft' : 'removeRight']
+          ] as const) {
+            const btn = document.createElement('button')
+            btn.textContent = label
+            btn.className = `mc-toggle${on ? (label === '+' ? ' mc-on-keep' : ' mc-on-drop') : ''}`
+            btn.title = `${label === '+' ? 'Keep' : 'Remove'} ${side === 'left' ? 'Yours' : 'Theirs'}`
+            btn.dataset.testid = `inline-${label === '+' ? 'apply' : 'remove'}-${side}-${i}`
+            btn.onclick = () => {
+              if (!on) act([i], action)
+            }
+            head.appendChild(btn)
+          }
+          dom.appendChild(head)
+          const pre = document.createElement('pre')
+          pre.textContent = (side === 'left' ? c.ours : c.theirs).join('\n') || '(nothing)'
+          if (st === 'ignored') pre.style.textDecoration = 'line-through'
+          if (st !== 'pending') pre.style.opacity = '.6'
+          dom.appendChild(pre)
+        }
         const bar = document.createElement('div')
         for (const [label, action] of [
           ['Accept Yours', 'L'],
@@ -511,33 +547,34 @@ function MergeEditorInner({ root, path, state, v, onClose }: Props & { v: Confli
           })}
         </svg>
         {chunks.map((ch, i) => {
-          const pending = side === 'left' ? ch.left === 'pending' : ch.right === 'pending'
-          if (!pending) return null
+          if (!hasSideChange(ch, side)) return null
           const start = (side === 'left' ? ch.oursStart : ch.theirsStart) + 1
           const top = yS(start)
           if (top < -20 || top > 5000) return null
+          const st = side === 'left' ? ch.left : ch.right
+          const pick = (action: ChunkAction) => {
+            setCurrent(i)
+            act([i], action)
+          }
           return (
             <div key={i} className="absolute flex gap-0.5" style={{ top: Math.max(0, top), [side === 'left' ? 'left' : 'right']: 2 }}>
               <button
-                className="rounded bg-bg px-1 text-[11px] font-bold leading-4 text-accent shadow hover:bg-accent hover:text-accent-fg"
-                title={side === 'left' ? 'Apply Yours (»)' : 'Apply Theirs («)'}
+                className={cn(toggleBtn, st === 'applied' ? 'border-success bg-success text-white' : 'border-border-strong bg-bg text-success hover:border-success')}
+                title={st === 'applied' ? `${side === 'left' ? 'Yours' : 'Theirs'} is kept in the result` : `Keep ${side === 'left' ? 'Yours' : 'Theirs'} (add to the result)`}
+                aria-pressed={st === 'applied'}
                 data-testid={`apply-${side}-${i}`}
-                onClick={() => {
-                  setCurrent(i)
-                  act([i], side === 'left' ? 'applyLeft' : 'applyRight')
-                }}
+                onClick={() => st !== 'applied' && pick(side === 'left' ? 'applyLeft' : 'applyRight')}
               >
-                {side === 'left' ? '»' : '«'}
+                +
               </button>
               <button
-                className="rounded bg-bg px-1 text-[11px] leading-4 text-muted shadow hover:text-danger"
-                title="Ignore this side's change"
-                onClick={() => {
-                  setCurrent(i)
-                  act([i], side === 'left' ? 'ignoreLeft' : 'ignoreRight')
-                }}
+                className={cn(toggleBtn, st === 'ignored' ? 'border-danger bg-danger text-white' : 'border-border-strong bg-bg text-danger hover:border-danger')}
+                title={st === 'ignored' ? `${side === 'left' ? 'Yours' : 'Theirs'} is removed from the result` : `Remove ${side === 'left' ? 'Yours' : 'Theirs'} from the result`}
+                aria-pressed={st === 'ignored'}
+                data-testid={`remove-${side}-${i}`}
+                onClick={() => st !== 'ignored' && pick(side === 'left' ? 'removeLeft' : 'removeRight')}
               >
-                ✕
+                −
               </button>
             </div>
           )

@@ -35,6 +35,21 @@ describe('merge editor model', () => {
     expect(layoutResult(regions, [c, chunks[1]!, chunks[2]!]).lines[1]).toBe('B-theirs')
   })
 
+  it('remove drops an applied side and keeps the other', () => {
+    const both = applyAction(chunks[0]!, 'bothLR')
+    const c = applyAction(both, 'removeLeft')
+    expect(c.left).toBe('ignored')
+    expect(isResolved(c)).toBe(true)
+    expect(layoutResult(regions, [c, chunks[1]!, chunks[2]!]).lines[1]).toBe('B-theirs')
+    // Removing both sides leaves the base text; re-adding appends after the kept side.
+    const none = applyAction(c, 'removeRight')
+    expect(layoutResult(regions, [none, chunks[1]!, chunks[2]!]).lines[1]).toBe('b')
+    expect(applyAction(applyAction(none, 'applyRight'), 'applyLeft').order).toEqual(['R', 'L'])
+    // A pre-applied non-conflicting change can be dropped too.
+    const dropped = applyAction(chunks[2]!, 'removeLeft')
+    expect(layoutResult(regions, [chunks[0]!, chunks[1]!, dropped]).lines).toEqual(['a', 'b', 'c', 'D-theirs', 'e'])
+  })
+
   it('take Yours / take Theirs for every chunk reproduces that whole version', () => {
     expect(layoutResult(regions, chunks.map((c) => applyAction(c, 'takeLeft'))).lines).toEqual(ours)
     expect(layoutResult(regions, chunks.map((c) => applyAction(c, 'takeRight'))).lines).toEqual(theirs)

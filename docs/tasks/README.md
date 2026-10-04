@@ -33,3 +33,5 @@ Decision records per task (not a changelog). Copy [`_TEMPLATE.md`](_TEMPLATE.md)
 | 2026-10-01 | [Operation banner flicker (CI merge-conflict e2e failure)](2026-10-01-operation-banner-flicker.md) | done |
 | 2026-10-03 | [Staging failed on an already-staged deletion](2026-10-03-stage-staged-deletion.md) | done |
 | 2026-10-03 | [Toast blocked "Continue rebase" (CI conflicts e2e failure)](2026-10-03-toast-blocks-dialog-footer.md) | done |
+| 2026-10-03 | [Merge editor: +/− toggles to keep or remove each side](2026-10-03-merge-keep-remove-toggles.md) | done |
+| 2026-10-03 | [window-state e2e read bounds before the WM resized (CI flake)](2026-10-03-window-state-e2e-race.md) | done |

@@ -53,9 +53,14 @@ test('rebase conflict: labels, 3-way merge editor, save, continue', async () => 
 
   const ed = page.getByTestId('merge-editor')
   await expect(ed.getByTestId('merge-counter')).toContainText('1 conflict')
-  // Apply Yours then Theirs from the gutters: both lines end up in the result.
+  // "−" removes Theirs (the conflict stays open), "+" can add it back afterwards.
+  await ed.getByTestId('remove-right-0').click()
+  await expect(ed.getByTestId('remove-right-0')).toHaveAttribute('aria-pressed', 'true')
+  await expect(ed.getByTestId('merge-counter')).toContainText('1 conflict')
+  // Keep Yours then Theirs from the gutters: both lines end up in the result.
   await ed.getByTestId('apply-left-0').click()
   await ed.getByTestId('apply-right-0').click()
+  await expect(ed.getByTestId('apply-right-0')).toHaveAttribute('aria-pressed', 'true')
   await expect(ed.getByTestId('merge-counter')).toContainText('0 conflicts')
   await ed.getByTestId('merge-save').click()
 

@@ -90,7 +90,17 @@ export function layoutResult(regions: readonly MergeRegion[], chunks: readonly C
   return { lines, starts, lengths }
 }
 
-export type ChunkAction = 'applyLeft' | 'applyRight' | 'ignoreLeft' | 'ignoreRight' | 'bothLR' | 'bothRL' | 'takeLeft' | 'takeRight'
+export type ChunkAction =
+  | 'applyLeft'
+  | 'applyRight'
+  | 'ignoreLeft'
+  | 'ignoreRight'
+  | 'removeLeft'
+  | 'removeRight'
+  | 'bothLR'
+  | 'bothRL'
+  | 'takeLeft'
+  | 'takeRight'
 
 /** Pure state transition; the caller re-renders the chunk's result block from chunkContent(). */
 export function applyAction(c: Chunk, action: ChunkAction): Chunk {
@@ -112,6 +122,15 @@ export function applyAction(c: Chunk, action: ChunkAction): Chunk {
       break
     case 'ignoreRight':
       n.right = n.right === 'applied' ? 'applied' : 'ignored'
+      break
+    // Drop a side from the result (also when already applied): the "−" toggle.
+    case 'removeLeft':
+      n.order = n.order.filter((s) => s !== 'L')
+      n.left = 'ignored'
+      break
+    case 'removeRight':
+      n.order = n.order.filter((s) => s !== 'R')
+      n.right = 'ignored'
       break
     case 'bothLR':
       n.order = ['L', 'R']
