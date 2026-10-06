@@ -41,3 +41,4 @@ Decision records per task (not a changelog). Copy [`_TEMPLATE.md`](_TEMPLATE.md)
 | 2026-10-06 | [CI: actions off Node 20, runner image pinned](2026-10-06-ci-actions-node24.md) | done |
 | 2026-10-06 | [Remove third-party IDE vendor mentions](2026-10-06-neutral-ide-wording.md) | done |
 | 2026-10-06 | [AI-generated commit messages via coding-agent CLIs](2026-10-06-ai-commit-message.md) | done |
+| 2026-10-06 | [AI CLI detection uses target-platform path rules](2026-10-06-ai-detect-platform-paths.md) | done |

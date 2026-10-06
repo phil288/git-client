@@ -1,8 +1,13 @@
 import { statSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { delimiter, join } from 'node:path'
+import { posix, win32 } from 'node:path'
 import { AI_TOOL_LABEL, AI_TOOLS, type AiToolInfo } from '@shared/types'
 import { AI_TOOL_SPECS, overrideEnvVar } from './tools'
+
+// Path rules follow the target platform, not the host, so tests can model either OS.
+function pathFor(platform: NodeJS.Platform): typeof posix {
+  return platform === 'win32' ? win32 : posix
+}
 
 function isFile(p: string): boolean {
   try {
@@ -18,9 +23,10 @@ function isFile(p: string): boolean {
  * lacks ~/.local/bin, npm's global bin, etc., where these CLIs live.
  */
 export function searchDirs(platform: NodeJS.Platform, env: NodeJS.ProcessEnv): string[] {
+  const { delimiter, join } = pathFor(platform)
   const pathVar = env.PATH ?? env.Path ?? ''
   const fromPath = pathVar
-    .split(platform === 'win32' ? ';' : delimiter)
+    .split(delimiter)
     .map((d) => d.trim().replace(/^"(.*)"$/, '$1'))
     .filter(Boolean)
   const home = (platform === 'win32' ? env.USERPROFILE : env.HOME) ?? homedir()
@@ -72,6 +78,7 @@ export function resolveBinary(
   env: NodeJS.ProcessEnv,
   exists: (p: string) => boolean = isFile
 ): string | null {
+  const { join } = pathFor(platform)
   const dirs = searchDirs(platform, env)
   const exts = platform === 'win32' ? [['.exe'], ['.cmd', '.bat']] : [['']]
   for (const group of exts) {

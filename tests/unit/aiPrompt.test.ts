@@ -1,4 +1,4 @@
-import { join } from 'node:path'
+import { win32 } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { cleanCommitMessage } from '../../src/main/ai/clean'
 import { detectTools, resolveBinary } from '../../src/main/ai/detect'
@@ -114,7 +114,7 @@ describe('output cleaning', () => {
 describe('tool detection and invocation', () => {
   it('prefers a real .exe over a .cmd shim on Windows', () => {
     const env = { Path: 'C:\\npm;C:\\bin', USERPROFILE: 'C:\\Users\\u' }
-    const files = new Set([join('C:\\npm', 'codex.cmd'), join('C:\\bin', 'codex.exe')])
+    const files = new Set([win32.join('C:\\npm', 'codex.cmd'), win32.join('C:\\bin', 'codex.exe')])
     const p = resolveBinary(['codex'], 'win32', env, (x) => files.has(x))
     expect(p?.toLowerCase().endsWith('codex.exe')).toBe(true)
   })
