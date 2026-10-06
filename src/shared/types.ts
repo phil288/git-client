@@ -444,6 +444,21 @@ export interface Remote {
   pushUrl: string
 }
 
+/** Edits applied by `remote:update`; pushUrl null = push to the fetch URL. */
+export interface RemoteUpdate {
+  name: string
+  fetchUrl: string
+  pushUrl: string | null
+}
+
+/** What `git ls-remote` found at a URL. */
+export interface RemoteTestResult {
+  branches: number
+  tags: number
+  /** Branch the remote HEAD points to, when the server says. */
+  defaultBranch: string | null
+}
+
 // ---------------------------------------------------------------------------
 // History rewriting (M5)
 // ---------------------------------------------------------------------------

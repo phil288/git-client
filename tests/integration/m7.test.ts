@@ -148,4 +148,35 @@ describe('tags and remotes', () => {
     await tr.removeRemote(runner, r, 'upstream')
     expect((await listRemotes(runner, r)).map((x) => x.name)).toEqual(['origin'])
   })
+
+  it('adds with a push URL and updates name / URLs in one call', async () => {
+    const r = initRepo(join(root, 'remotes-update'))
+    await tr.addRemote(runner, r, 'origin', 'https://example.invalid/a.git', 'git@example.invalid:a.git')
+    expect(await listRemotes(runner, r)).toEqual([{ name: 'origin', fetchUrl: 'https://example.invalid/a.git', pushUrl: 'git@example.invalid:a.git' }])
+    // Same push URL as fetch: no pushurl is written.
+    await tr.addRemote(runner, r, 'same', 'https://example.invalid/s.git', 'https://example.invalid/s.git')
+    expect(git(r, 'config', '--get-all', 'remote.same.url').trim()).toBe('https://example.invalid/s.git')
+    expect(() => git(r, 'config', '--get', 'remote.same.pushurl')).toThrow()
+
+    await tr.updateRemote(runner, r, 'origin', { name: 'mine', fetchUrl: 'https://example.invalid/b.git', pushUrl: null })
+    expect((await listRemotes(runner, r)).find((x) => x.name === 'mine')).toEqual({ name: 'mine', fetchUrl: 'https://example.invalid/b.git', pushUrl: 'https://example.invalid/b.git' })
+    await tr.updateRemote(runner, r, 'mine', { name: 'mine', fetchUrl: 'https://example.invalid/b.git', pushUrl: 'git@example.invalid:p.git' })
+    expect((await listRemotes(runner, r)).find((x) => x.name === 'mine')!.pushUrl).toBe('git@example.invalid:p.git')
+    await expect(tr.updateRemote(runner, r, 'nope', { name: 'x', fetchUrl: 'u', pushUrl: null })).rejects.toMatchObject({ code: 'INVALID_ARGUMENT' })
+    await expect(tr.updateRemote(runner, r, 'mine', { name: 'same', fetchUrl: 'u', pushUrl: null })).rejects.toBeTruthy()
+  })
+
+  it('tests a URL with ls-remote without changing the repository', async () => {
+    const origin = join(root, 'test-origin.git')
+    git(root, 'init', '-q', '--bare', '-b', 'trunk', origin)
+    const r = initRepo(join(root, 'remotes-test'))
+    expect(await tr.testRemoteUrl(runner, r, origin)).toEqual({ branches: 0, tags: 0, defaultBranch: null })
+    git(r, 'push', '-q', origin, 'HEAD:refs/heads/trunk', 'HEAD:refs/heads/dev')
+    git(r, 'tag', '-a', '-m', 'v', 'v1')
+    git(r, 'push', '-q', origin, 'v1')
+    expect(await tr.testRemoteUrl(runner, r, origin)).toEqual({ branches: 2, tags: 1, defaultBranch: 'trunk' })
+    expect(git(r, 'remote').trim()).toBe('')
+    await expect(tr.testRemoteUrl(runner, r, join(root, 'missing.git'))).rejects.toMatchObject({ code: 'GIT_FAILED' })
+    await expect(tr.testRemoteUrl(runner, r, '--upload-pack=touch x')).rejects.toBeTruthy()
+  })
 })

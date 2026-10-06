@@ -1,5 +1,5 @@
 import type { EventChannel, InvokeArgs, InvokeChannel, InvokeResult, IpcEventMap } from '@shared/ipc'
-import type { CloneRequest, ErrorInfo, FileContent, LogQuery, MergeMode, PullMode, PushOptions, RepoGroup, RepoPrefs, ResetMode, RewritePlan, SessionState, Settings, WorktreeForce } from '@shared/types'
+import type { CloneRequest, ErrorInfo, FileContent, LogQuery, MergeMode, PullMode, PushOptions, RemoteUpdate, RepoGroup, RepoPrefs, ResetMode, RewritePlan, SessionState, Settings, WorktreeForce } from '@shared/types'
 
 /** Error carrying git's stderr and the failed command across IPC. */
 export class ApiError extends Error {
@@ -126,7 +126,9 @@ export const api = {
     deleteRemote: (root: string, remote: string, name: string, opId: string) => call('tag:deleteRemote', root, remote, name, opId)
   },
   remotes: {
-    add: (root: string, name: string, url: string) => call('remote:add', root, name, url),
+    add: (root: string, name: string, url: string, pushUrl: string | null = null) => call('remote:add', root, name, url, pushUrl),
+    update: (root: string, name: string, update: RemoteUpdate) => call('remote:update', root, name, update),
+    test: (root: string, url: string, opId: string) => call('remote:test', root, url, opId),
     setUrl: (root: string, name: string, url: string, push: boolean) => call('remote:setUrl', root, name, url, push),
     remove: (root: string, name: string) => call('remote:remove', root, name),
     rename: (root: string, oldName: string, newName: string) => call('remote:rename', root, oldName, newName),

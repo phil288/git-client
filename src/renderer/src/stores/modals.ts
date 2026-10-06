@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Commit, Ref, UpdateInfo, WorktreeEntry } from '@shared/types'
+import type { Commit, Ref, Remote, UpdateInfo, WorktreeEntry } from '@shared/types'
 
 /** Parametrised dialogs; one at a time, rendered by <ModalHost/>. */
 export type Modal =
@@ -16,7 +16,8 @@ export type Modal =
   | { kind: 'reflog'; root: string }
   | { kind: 'stashCreate'; root: string }
   | { kind: 'newTag'; root: string; target: string; label: string }
-  | { kind: 'remotes'; root: string }
+  /** Add a remote, or edit `remote`. */
+  | { kind: 'remote'; root: string; remote?: Remote }
   | { kind: 'addWorktree'; root: string; start?: string }
   | { kind: 'removeWorktree'; root: string; worktree: WorktreeEntry }
   | { kind: 'mergeWorktree'; root: string; worktree: WorktreeEntry }

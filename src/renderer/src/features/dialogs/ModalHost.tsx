@@ -12,7 +12,8 @@ import { ConflictsDialog, MergeEditorModal } from '../merge/ConflictsDialog'
 import { SettingsDialog } from '../settings/SettingsDialog'
 import { ShortcutsDialog } from '../settings/ShortcutsDialog'
 import { UpdateDialog } from '../settings/UpdateDialog'
-import { NewTagDialog, RemotesDialog, StashCreateDialog } from '../stash/M7Dialogs'
+import { RemoteDialog } from '../remotes/RemoteDialog'
+import { NewTagDialog, StashCreateDialog } from '../stash/M7Dialogs'
 import { FixupTargetDialog, InteractiveRebaseDialog, ReflogDialog, ResetDialog } from '../rewrite/RewriteDialogs'
 import { AddWorktreeDialog, MergeWorktreeDialog, RemoveWorktreeDialog } from '../worktrees/WorktreeDialogs'
 
@@ -47,8 +48,8 @@ export function ModalHost() {
       return <StashCreateDialog {...m} />
     case 'newTag':
       return <NewTagDialog {...m} />
-    case 'remotes':
-      return <RemotesDialog {...m} />
+    case 'remote':
+      return <RemoteDialog {...m} />
     case 'addWorktree':
       return <AddWorktreeDialog {...m} />
     case 'removeWorktree':

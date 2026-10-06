@@ -11,3 +11,4 @@ export const showBlame = (path: string, rev: string | null = null): void => show
 /** Opens the Log and selects `hash` (loading pages until it is found). */
 export const showInLog = (hash: string): void => show({ view: 'log', logPendingGoTo: hash })
 export const showCommitView = (): void => show({ view: 'commit' })
+export const showRemotes = (): void => show({ view: 'remotes' })

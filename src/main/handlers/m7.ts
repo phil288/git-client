@@ -1,3 +1,4 @@
+import type { RemoteUpdate } from '@shared/types'
 import type { MainContext } from '../context'
 import { blame, fileHistory } from '../git/history'
 import * as st from '../git/stash'
@@ -68,9 +69,19 @@ export function registerM7Handlers(ctx: MainContext): void {
       tr.deleteRemoteTag(runner, r, str(remote, 'remote'), str(name, 'name'), op.signal)
     )
   })
-  handle('remote:add', (_e, r0, name, url) => {
+  handle('remote:add', (_e, r0, name, url, pushUrl) => {
     const r = root(r0)
-    return mutate(r, () => tr.addRemote(runner, r, str(name, 'name'), str(url, 'url')))
+    return mutate(r, () => tr.addRemote(runner, r, str(name, 'name'), str(url, 'url'), assert.nullableString(pushUrl, 'pushUrl')))
+  })
+  handle('remote:update', (_e, r0, name, u) => {
+    const r = root(r0)
+    const p = u as RemoteUpdate | undefined
+    const update: RemoteUpdate = { name: str(p?.name, 'new name'), fetchUrl: str(p?.fetchUrl, 'fetchUrl'), pushUrl: assert.nullableString(p?.pushUrl, 'pushUrl') }
+    return mutate(r, () => tr.updateRemote(runner, r, str(name, 'name'), update))
+  })
+  handle('remote:test', (_e, r0, url, opId) => {
+    const r = root(r0)
+    return ctx.ops.run(str(opId, 'opId'), 'Testing connection', true, (op) => tr.testRemoteUrl(runner, r, str(url, 'url'), op.signal))
   })
   handle('remote:setUrl', (_e, r0, name, url, push) => {
     const r = root(r0)

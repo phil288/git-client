@@ -3,11 +3,11 @@ import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import type { Commit, Ref, StatusEntry } from '@shared/types'
 import { api } from '@/lib/api'
-import { attempt, fetchFlow, refreshRepo } from '@/lib/gitOps'
+import { attempt, refreshRepo } from '@/lib/gitOps'
 import { notifyError } from '@/lib/notify'
 import { newId } from '@/lib/utils'
-import { showBlame, showFileHistory } from '@/lib/views'
-import { confirm, prompt } from '@/stores/dialogs'
+import { showBlame, showFileHistory, showRemotes } from '@/lib/views'
+import { choose, confirm } from '@/stores/dialogs'
 import { closeModal, openModal } from '@/stores/modals'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -122,116 +122,6 @@ export function NewTagDialog({ root, target, label }: { root: string; target: st
   )
 }
 
-export function RemotesDialog({ root }: { root: string }) {
-  const q = useQuery({ queryKey: ['repo', root, 'remotes'], queryFn: () => api.remote.list(root) })
-  const [name, setName] = useState('')
-  const [url, setUrl] = useState('')
-  const act = (fn: () => Promise<unknown>) =>
-    void attempt(async () => {
-      await fn()
-      refreshRepo(root)
-      void q.refetch()
-    })
-  return (
-    <Dialog {...open}>
-      <DialogContent className="max-w-3xl" data-testid="remotes-dialog">
-        <DialogHeader>
-          <DialogTitle>Manage Remotes</DialogTitle>
-        </DialogHeader>
-        <div className="max-h-80 overflow-auto rounded border border-border-strong bg-bg">
-          {(q.data ?? []).length === 0 && <div className="p-3 text-muted">No remotes</div>}
-          {(q.data ?? []).map((r) => (
-            <div key={r.name} className="flex items-center gap-2 border-b border-border px-2 py-1.5 text-[13px]">
-              <span className="w-24 shrink-0 font-medium">{r.name}</span>
-              <span className="min-w-0 flex-1">
-                <span className="selectable block truncate font-mono text-xs">{r.fetchUrl}</span>
-                {r.pushUrl !== r.fetchUrl && <span className="selectable block truncate font-mono text-xs text-muted">push: {r.pushUrl}</span>}
-              </span>
-              <Button size="sm" variant="ghost" onClick={() => void fetchFlow(root, r.name)}>
-                Fetch
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => act(() => api.remotes.prune(root, r.name, newId()))}>
-                Prune
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() =>
-                  act(async () => {
-                    const u = await prompt({ title: `Edit URL of ${r.name}`, initial: r.fetchUrl, confirmLabel: 'Save' })
-                    if (u?.trim()) await api.remotes.setUrl(root, r.name, u.trim(), false)
-                  })
-                }
-              >
-                Edit URL
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() =>
-                  act(async () => {
-                    const n = await prompt({ title: `Rename remote ${r.name}`, initial: r.name, confirmLabel: 'Rename' })
-                    if (n?.trim() && n.trim() !== r.name) await api.remotes.rename(root, r.name, n.trim())
-                  })
-                }
-              >
-                Rename
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-danger"
-                onClick={() =>
-                  act(async () => {
-                    const ok = await confirm({
-                      title: 'Remove remote',
-                      message: `Remove the remote “${r.name}” and its remote-tracking branches? Nothing is deleted on the server.`,
-                      confirmLabel: 'Remove',
-                      destructive: true
-                    })
-                    if (ok) await api.remotes.remove(root, r.name)
-                  })
-                }
-              >
-                Remove
-              </Button>
-            </div>
-          ))}
-        </div>
-        <form
-          className="flex items-end gap-2"
-          onSubmit={(e) => {
-            e.preventDefault()
-            act(async () => {
-              await api.remotes.add(root, name.trim(), url.trim())
-              setName('')
-              setUrl('')
-            })
-          }}
-        >
-          <div className="flex w-32 flex-col gap-1">
-            <Label>Name</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="origin" />
-          </div>
-          <div className="flex flex-1 flex-col gap-1">
-            <Label>URL</Label>
-            <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://… or git@…" />
-          </div>
-          <Button type="submit" disabled={!name.trim() || !url.trim()}>
-            Add Remote
-          </Button>
-        </form>
-        <DialogFooter>
-          <Button variant="secondary" onClick={() => void fetchFlow(root)}>
-            Fetch All
-          </Button>
-          <Button onClick={closeModal}>Close</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
 // ---------------------------------------------------------------------------
 // Menu contributions
 // ---------------------------------------------------------------------------
@@ -243,8 +133,11 @@ async function pickRemote(root: string): Promise<string | null> {
     return null
   }
   if (list.length === 1) return list[0]!.name
-  const r = await prompt({ title: 'Remote', label: `One of: ${list.map((x) => x.name).join(', ')}`, initial: list[0]!.name })
-  return r?.trim() || null
+  return choose({
+    title: 'Choose a remote',
+    message: 'Which remote should be used?',
+    choices: [...list.map((x, i) => ({ id: x.name, label: x.name, variant: i === 0 ? ('default' as const) : ('secondary' as const) })), { id: '', label: 'Cancel', variant: 'secondary' as const }]
+  }).then((id) => id || null)
 }
 
 tagMenuItems.render = ({ root, r }: { root: string; r: Ref }) =>
@@ -312,5 +205,6 @@ changesMenuExtras.items.push((_root: string, e: StatusEntry) =>
 
 gitMenuExtras.items.push(
   (root) => <DropdownMenuItem onSelect={() => openModal({ kind: 'stashCreate', root })}>Stash Changes…</DropdownMenuItem>,
-  (root) => <DropdownMenuItem onSelect={() => openModal({ kind: 'remotes', root })}>Manage Remotes…</DropdownMenuItem>
+  () => <DropdownMenuItem onSelect={showRemotes}>Manage Remotes…</DropdownMenuItem>,
+  (root) => <DropdownMenuItem onSelect={() => openModal({ kind: 'remote', root })}>Add Remote…</DropdownMenuItem>
 )

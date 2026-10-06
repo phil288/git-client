@@ -26,6 +26,8 @@ import type {
   PullMode,
   PushOptions,
   Remote,
+  RemoteTestResult,
+  RemoteUpdate,
   RepoPrefs,
   FileContent,
   LogPage,
@@ -215,7 +217,12 @@ export interface IpcInvokeMap {
   'tag:delete': [[root: string, name: string], void]
   'tag:push': [[root: string, remote: string, name: string, opId: string], void]
   'tag:deleteRemote': [[root: string, remote: string, name: string, opId: string], void]
-  'remote:add': [[root: string, name: string, url: string], void]
+  /** Adds a remote; a non-null pushUrl different from url is set as its push URL. */
+  'remote:add': [[root: string, name: string, url: string, pushUrl: string | null], void]
+  /** Rename / change URLs of an existing remote in one call. */
+  'remote:update': [[root: string, name: string, update: RemoteUpdate], void]
+  /** Reads refs at a URL (`git ls-remote`) to check it is reachable; changes nothing. */
+  'remote:test': [[root: string, url: string, opId: string], RemoteTestResult]
   'remote:setUrl': [[root: string, name: string, url: string, push: boolean], void]
   'remote:remove': [[root: string, name: string], void]
   'remote:rename': [[root: string, oldName: string, newName: string], void]
@@ -403,6 +410,8 @@ const invokeChannelRecord = {
   'tag:push': true,
   'tag:deleteRemote': true,
   'remote:add': true,
+  'remote:update': true,
+  'remote:test': true,
   'remote:setUrl': true,
   'remote:remove': true,
   'remote:rename': true,

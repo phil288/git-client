@@ -2,6 +2,7 @@ import type { Ref } from '@shared/types'
 import { api } from '@/lib/api'
 import { checkoutFlow, deleteBranchFlow, deleteRemoteBranchFlow, fetchFlow, pullFlow, rebaseFlow, refreshRepo, refToTarget } from '@/lib/gitOps'
 import { run } from '@/lib/notify'
+import { showRemotes } from '@/lib/views'
 import { openModal } from '@/stores/modals'
 import {
   ContextMenuItem,
@@ -94,6 +95,7 @@ export function BranchMenu({ root, r, currentBranch, favorite, onToggleFavorite 
           <ContextMenuItem onSelect={() => void deleteRemoteBranchFlow(root, r.remote!, name.slice((r.remote?.length ?? 0) + 1))}>
             Delete Remote Branch…
           </ContextMenuItem>
+          <ContextMenuItem onSelect={showRemotes}>Manage Remotes…</ContextMenuItem>
         </>
       )}
       {extra}

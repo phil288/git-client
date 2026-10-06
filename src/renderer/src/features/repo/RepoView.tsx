@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, Archive, ExternalLink, FileClock, FolderTree, GitCommitHorizontal, GitCommitVertical, History, Loader2, ScrollText, Tag, X } from 'lucide-react'
+import { AlertTriangle, Archive, Cloud, ExternalLink, FileClock, FolderTree, GitCommitHorizontal, GitCommitVertical, History, Loader2, ScrollText, Tag, X } from 'lucide-react'
 import { api } from '@/lib/api'
 import { openRepoPath } from '@/lib/repoActions'
 import { cn } from '@/lib/utils'
@@ -10,6 +10,7 @@ import { BranchesPanel } from '../branches/BranchesPanel'
 import { ChangesView, useWorkingStatus } from '../changes/ChangesView'
 import { BlameView } from '../history/BlameView'
 import { FileHistoryView } from '../history/FileHistoryView'
+import { RemotesView } from '../remotes/RemotesView'
 import { StashView } from '../stash/StashView'
 import { CommitMenu } from '../log/CommitMenu'
 import { LogView, useRefs } from '../log/LogView'
@@ -18,7 +19,7 @@ import { useWorktrees } from '../worktrees/WorktreeDialogs'
 import { LinkedWorktreeBar, WorktreesView } from '../worktrees/WorktreesView'
 import { OperationBanner } from './OperationBanner'
 
-export type RepoViewKind = 'log' | 'commit' | 'stash' | 'tags' | 'worktrees' | 'history' | 'blame'
+export type RepoViewKind = 'log' | 'commit' | 'stash' | 'tags' | 'worktrees' | 'remotes' | 'history' | 'blame'
 
 interface StripeItem {
   id: RepoViewKind
@@ -32,7 +33,8 @@ const STRIPE: StripeItem[] = [
   { id: 'log', label: 'Git Log', icon: <History className="size-4" /> },
   { id: 'stash', label: 'Stashes', icon: <Archive className="size-4" /> },
   { id: 'tags', label: 'Tags', icon: <Tag className="size-4" /> },
-  { id: 'worktrees', label: 'Worktrees', icon: <FolderTree className="size-4" /> }
+  { id: 'worktrees', label: 'Worktrees', icon: <FolderTree className="size-4" /> },
+  { id: 'remotes', label: 'Remotes', icon: <Cloud className="size-4" /> }
 ]
 
 export function useRepoInfo(root: string) {
@@ -156,6 +158,7 @@ export function RepoView({ tab }: { tab: TabRef }) {
           {view === 'stash' && <StashView tab={tab} />}
           {view === 'tags' && <TagsView tab={tab} />}
           {view === 'worktrees' && <WorktreesView tab={tab} />}
+          {view === 'remotes' && <RemotesView tab={tab} />}
           {view === 'history' && historyPath && <FileHistoryView key={historyPath} tab={tab} path={historyPath} />}
           {view === 'blame' && blamePath && <BlameView key={`${blamePath}@${blameRev}`} tab={tab} path={blamePath} rev={blameRev} />}
           {view === 'log' && (
