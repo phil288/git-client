@@ -31,7 +31,7 @@ linux:
     - tar.gz
   category: Development
   icon: build/icon.png
-  synopsis: Git client modeled on the JetBrains IDE Git tooling
+  synopsis: Git client with IDE-style Git tooling
   description: Cross-platform Git client with a commit graph, branches, interactive rebase and a 3-way merge tool.
   maintainer: GitClient contributors <noreply@users.noreply.github.com>
   # Window association: app_id / WM_CLASS matches the .desktop file name.

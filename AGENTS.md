@@ -5,7 +5,7 @@ Human-facing overview: [README.md](README.md). Machine-readable summary: [llms.t
 
 ## What this is
 
-GitClient: an Electron desktop Git GUI for Linux and Windows modeled on the JetBrains IDE Git
+GitClient: an Electron desktop Git GUI for Linux and Windows modeled on classic IDE Git
 tooling (log + commit graph, branches, commit window, interactive rebase, 3-way merge editor).
 TypeScript everywhere; React 19 + Tailwind 4 + Zustand + TanStack Query in the renderer; Monaco for
 diffs and the merge editor; Vitest + Playwright for tests. Node 22.12+, git 2.30+.

@@ -13,4 +13,4 @@ body:
     id: idea
     attributes:
       label: How should GitClient help?
-      description: If JetBrains IDEs or another Git client already do this well, describe how.
+      description: If an IDE or another Git client already do this well, describe how.

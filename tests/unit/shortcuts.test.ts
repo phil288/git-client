@@ -8,7 +8,7 @@ function key(k: string, mods: Partial<KeyLike> = {}, code = ''): KeyLike {
 describe('shortcutFor (Linux/Windows)', () => {
   const s = (e: KeyLike) => shortcutFor(e, false)
 
-  it('maps JetBrains-like shortcuts', () => {
+  it('maps IDE-style shortcuts', () => {
     expect(s(key('o', { ctrlKey: true }))).toBe('open-folder')
     expect(s(key('O', { ctrlKey: true, shiftKey: true }))).toBe('quick-switcher')
     expect(s(key('e', { ctrlKey: true }))).toBe('quick-switcher')

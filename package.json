@@ -3,7 +3,7 @@
   "productName": "GitClient",
   "desktopName": "gitclient.desktop",
   "version": "0.1.0",
-  "description": "Free, open-source Git GUI for Linux and Windows modeled on the JetBrains IDE Git tooling: commit graph, branches, interactive rebase and a 3-way merge tool",
+  "description": "Free, open-source Git GUI for Linux and Windows with IDE-style Git tooling: commit graph, branches, interactive rebase and a 3-way merge tool",
   "keywords": [
     "git",
     "git-client",
@@ -19,8 +19,6 @@
     "diff",
     "interactive-rebase",
     "commit-graph",
-    "jetbrains",
-    "intellij",
     "linux",
     "windows",
     "ubuntu"

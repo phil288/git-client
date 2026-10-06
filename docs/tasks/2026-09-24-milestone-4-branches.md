@@ -6,7 +6,7 @@
 
 ## Context
 
-JetBrains Branches popup + sidebar: tree, search, favorites/recent, ahead/behind, checkout (smart),
+IDE-style Branches popup + sidebar: tree, search, favorites/recent, ahead/behind, checkout (smart),
 create/rename/delete/restore, merge, rebase, compare, diff with working tree, fetch/pull/push,
 upstream management.
 

@@ -67,7 +67,7 @@ interface Props {
   className?: string
 }
 
-/** Monaco side-by-side / unified diff with ignore-whitespace, JetBrains style. */
+/** Monaco side-by-side / unified diff with ignore-whitespace. */
 export function DiffViewer({ root, left, right, title, onClose, className }: Props) {
   const theme = useMonacoTheme()
   const sideBySide = useAppStore((s) => s.settings.diffSideBySide)

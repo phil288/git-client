@@ -76,7 +76,7 @@ export async function checkout(runner: GitRunner, root: string, target: string, 
   }
 }
 
-/** Stash local changes, check out, re-apply them (JetBrains "Smart Checkout"). */
+/** Stash local changes, check out, re-apply them (smart checkout). */
 export async function smartCheckout(runner: GitRunner, root: string, target: string, opts: { detach?: boolean } = {}): Promise<OpOutcome> {
   const t = assertName(target, 'revision')
   const before = await runner.run(['stash', 'list', '--format=%H'], { cwd: root })

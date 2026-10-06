@@ -1,6 +1,6 @@
 # GitClient
 
-> GitClient is a free, open-source (MIT) desktop Git GUI for Linux and Windows that reproduces the Git tooling of JetBrains IDEs (IntelliJ IDEA, WebStorm, PyCharm) as a standalone app: a commit log with branch graph, a Branches panel, a Commit tool window with hunk staging, an interactive rebase dialog and a 3-way merge conflict editor. Built with Electron, React and TypeScript; it runs the user's installed git (2.30+) and shows every command it executes.
+> GitClient is a free, open-source (MIT) desktop Git GUI for Linux and Windows that brings IDE-style Git tooling to a standalone app: a commit log with branch graph, a Branches panel, a Commit tool window with hunk staging, an interactive rebase dialog and a 3-way merge conflict editor. Built with Electron, React and TypeScript; it runs the user's installed git (2.30+) and shows every command it executes.
 
 Key facts:
 

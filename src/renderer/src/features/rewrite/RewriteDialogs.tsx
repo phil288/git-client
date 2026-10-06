@@ -29,7 +29,7 @@ interface Row extends RebaseTodoItem {
   original: RangeCommit
 }
 
-/** JetBrains-like interactive rebase: actions, drag-and-drop order, message editor. */
+/** Interactive rebase: actions, drag-and-drop order, message editor. */
 export function InteractiveRebaseDialog({ root, base, fromLabel }: { root: string; base: string | null; fromLabel: string }) {
   const q = useQuery({ queryKey: ['repo', root, 'irebase', base], queryFn: () => api.rewrite.commits(root, base), staleTime: Infinity })
   const [rows, setRows] = useState<Row[] | null>(null)

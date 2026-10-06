@@ -9,7 +9,7 @@
 After the repository went public (see [2026-10-06-public-repo-readme](2026-10-06-public-repo-readme.md)),
 the goal was to make GitClient findable by search engines, AI answer engines and GitHub search, and
 easy for AI coding agents to work on. "GitClient" is a generic name, so ranking depends on the
-descriptive phrases around it ("Git GUI for Linux", "JetBrains Git tools without the IDE",
+descriptive phrases around it ("Git GUI for Linux", "IDE Git tools without the IDE",
 "GitKraken / Sourcetree alternative").
 
 ## Decisions

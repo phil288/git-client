@@ -6,7 +6,7 @@
 
 ## Context
 
-JetBrains Commit tool window: changed / unversioned files tree with a checkbox per file and per
+IDE-style Commit tool window: changed / unversioned files tree with a checkbox per file and per
 hunk, diff per file, rollback per file / hunk, message editor with 50/72 guide, recent messages,
 amend, sign-off, Commit and Commit-and-Push (push dialog from M4).
 
@@ -47,7 +47,7 @@ amend, sign-off, Commit and Commit-and-Push (push dialog from M4).
 
 - Line-level (sub-hunk) staging.
 - Hunk staging for untracked files (stage them whole).
-- Changelists (JetBrains-specific concept).
+- Changelists (IDE-specific concept).
 
 ## How to verify
 

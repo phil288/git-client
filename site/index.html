@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GitClient — Free Open-Source Git GUI for Linux &amp; Windows</title>
-<meta name="description" content="GitClient is a free, open-source Git GUI for Linux and Windows with the JetBrains IDE Git tools: commit graph, branches, interactive rebase, hunk staging and a 3-way merge editor.">
-<meta name="keywords" content="git client, git gui, linux git client, git gui for windows, open source git client, free git client, 3-way merge tool, interactive rebase gui, commit graph, intellij git without ide, gitkraken alternative, sourcetree for linux">
+<meta name="description" content="GitClient is a free, open-source Git GUI for Linux and Windows with IDE-style Git tools: commit graph, branches, interactive rebase, hunk staging and a 3-way merge editor.">
+<meta name="keywords" content="git client, git gui, linux git client, git gui for windows, open source git client, free git client, 3-way merge tool, interactive rebase gui, commit graph, gitkraken alternative, sourcetree for linux">
 <link rel="canonical" href="https://phil288.github.io/git-client/">
 <meta name="robots" content="index, follow, max-image-preview:large">
 <meta name="theme-color" content="#4f7cff">
@@ -16,7 +16,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="GitClient">
 <meta property="og:title" content="GitClient — Free Open-Source Git GUI for Linux & Windows">
-<meta property="og:description" content="The JetBrains IDE Git tools as a standalone app: commit graph, branches, interactive rebase and a 3-way merge editor. Free, MIT-licensed, no account.">
+<meta property="og:description" content="IDE-style Git tools as a standalone app: commit graph, branches, interactive rebase and a 3-way merge editor. Free, MIT-licensed, no account.">
 <meta property="og:url" content="https://phil288.github.io/git-client/">
 <meta property="og:image" content="https://phil288.github.io/git-client/og.png">
 <meta property="og:image:width" content="1200">
@@ -36,7 +36,7 @@
       "@id": "https://phil288.github.io/git-client/#app",
       "name": "GitClient",
       "alternateName": "GitClient Git GUI",
-      "description": "Free, open-source desktop Git GUI for Linux and Windows modeled on the JetBrains IDE Git tooling: commit graph, branches, commit window with hunk staging, interactive rebase and a 3-way merge editor.",
+      "description": "Free, open-source desktop Git GUI for Linux and Windows with IDE-style Git tooling: commit graph, branches, commit window with hunk staging, interactive rebase and a 3-way merge editor.",
       "applicationCategory": "DeveloperApplication",
       "applicationSubCategory": "Version control",
       "operatingSystem": "Linux, Windows 10, Windows 11",
@@ -77,8 +77,8 @@
       "mainEntity": [
         { "@type": "Question", "name": "Is GitClient free?",
           "acceptedAnswer": { "@type": "Answer", "text": "Yes. GitClient is open source under the MIT license, with no paid tier, account or license key." } },
-        { "@type": "Question", "name": "Can I use the IntelliJ / JetBrains Git tools without the IDE?",
-          "acceptedAnswer": { "@type": "Answer", "text": "Yes. GitClient reproduces the JetBrains Log, Branches, Commit, interactive rebase and merge-conflict tools as a standalone desktop app that works alongside any editor." } },
+        { "@type": "Question", "name": "Can I use IDE-style Git tools without an IDE?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. GitClient provides Log, Branches, Commit, interactive rebase and merge-conflict tools as a standalone desktop app that works alongside any editor." } },
         { "@type": "Question", "name": "Is there a good Git GUI for Linux?",
           "acceptedAnswer": { "@type": "Answer", "text": "GitClient runs natively on Linux (Ubuntu and Debian .deb, AppImage and tarball) and Windows, unlike Fork, Tower and Sourcetree, and is free and open source unlike GitKraken and Sublime Merge." } },
         { "@type": "Question", "name": "Does GitClient work with GitHub, GitLab and Bitbucket?",
@@ -124,7 +124,7 @@ h3 { margin: 0 0 6px; font-size: 18px; }
 .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
 .card p { margin: 0; color: var(--muted); font-size: 16px; }
 pre { background: var(--code); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; overflow-x: auto; font-size: 14px; margin: 8px 0 20px; }
-code { font-family: ui-monospace, "Cascadia Code", "JetBrains Mono", Menlo, monospace; }
+code { font-family: ui-monospace, "Cascadia Code", Menlo, monospace; }
 table { width: 100%; border-collapse: collapse; font-size: 15px; }
 .table-wrap { overflow-x: auto; }
 th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
@@ -151,9 +151,9 @@ footer { padding: 48px 0; color: var(--muted); font-size: 14px; text-align: cent
 
   <main>
     <div class="hero">
-      <h1>The JetBrains Git tools,<br>as a free standalone app</h1>
+      <h1>IDE-grade Git tools,<br>as a free standalone app</h1>
       <p class="lead">GitClient is an open-source Git GUI for <strong>Linux</strong> and <strong>Windows</strong>:
-        commit graph, branches, hunk staging, interactive rebase and a 3-way merge editor — modeled on IntelliJ IDEA,
+        commit graph, branches, hunk staging, interactive rebase and a 3-way merge editor —
         for whatever editor you use.</p>
       <div class="cta">
         <a class="btn primary" href="#install">Install GitClient</a>
@@ -209,7 +209,7 @@ footer { padding: 48px 0; color: var(--muted); font-size: 14px; text-align: cent
     <section id="faq">
       <h2>FAQ</h2>
       <details open><summary>Is GitClient free?</summary><p>Yes. It is open source under the MIT license, with no paid tier, account or license key.</p></details>
-      <details><summary>Can I use the IntelliJ / JetBrains Git tools without the IDE?</summary><p>Yes — that is the point of GitClient. It reproduces the Log, Branches, Commit, interactive rebase and merge-conflict tools as a standalone app that works alongside VS Code, Neovim, Zed or the terminal.</p></details>
+      <details><summary>Can I use IDE-style Git tools without an IDE?</summary><p>Yes — that is the point of GitClient. It provides Log, Branches, Commit, interactive rebase and merge-conflict tools as a standalone app that works alongside VS Code, Neovim, Zed or the terminal.</p></details>
       <details><summary>Is there a good Git GUI for Linux?</summary><p>GitClient runs natively on Linux (Ubuntu/Debian package, AppImage, tarball) and Windows, unlike Fork, Tower and Sourcetree, and is free and open source unlike GitKraken and Sublime Merge.</p></details>
       <details><summary>Does it work with GitHub, GitLab and Bitbucket?</summary><p>Yes. It drives your installed git and uses your existing remotes, SSH keys and credential helpers, so it works with any Git host.</p></details>
     </section>

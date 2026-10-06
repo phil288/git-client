@@ -54,7 +54,7 @@ interface Props {
   setQuery(q: LogQuery): void
 }
 
-/** JetBrains-style branches tree: favorites, recent, local, remotes, tags. */
+/** Branches tree: favorites, recent, local, remotes, tags. */
 export function BranchesPanel({ tab, refs, currentBranch, query, setQuery }: Props) {
   const root = tab.path
   const qc = useQueryClient()

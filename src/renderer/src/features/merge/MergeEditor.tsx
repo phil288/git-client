@@ -114,7 +114,7 @@ interface Snapshot {
 }
 
 /**
- * JetBrains-style 3-way merge: Yours | Result | Theirs, per-chunk actions in
+ * 3-way merge: Yours | Result | Theirs, per-chunk actions in
  * the gutters between panes, connector curves, synchronised scrolling,
  * F7/Shift+F7 navigation, undoable actions, base overlay and inline mode.
  */

@@ -5,8 +5,8 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Platforms: Linux | Windows](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-lightgrey)
 
-**GitClient** is a standalone desktop Git client that brings the Git tooling of JetBrains IDEs
-(IntelliJ IDEA, WebStorm, PyCharm, Rider) to any project, without an IDE: the Log tab with a commit
+**GitClient** is a standalone desktop Git client that brings IDE-style Git tooling to any
+project, without an IDE: the Log tab with a commit
 graph, the Branches popup, the Commit tool window, the interactive rebase dialog and the 3-way merge
 tool. It runs on Linux (Ubuntu/Debian package, AppImage, tarball) and Windows 10/11, is built with Electron, React and TypeScript, and
 calls your installed `git` directly — no account, no telemetry, no cloud (the only network call
@@ -46,7 +46,7 @@ of its own is the release update check, which can be turned off).
 
 ## Who is it for?
 
-- Developers who like the JetBrains Git UI but work in VS Code, Neovim, Zed or the terminal.
+- Developers who like IDE-integrated Git tools but work in VS Code, Neovim, Zed or the terminal.
 - Linux users looking for a native-feeling Git GUI (GitKraken, Fork, Tower and Sourcetree are
   either paid, closed source or not available on Linux).
 - Anyone who wants a free, open-source, offline Git client that does not wrap Git in its own
@@ -161,8 +161,8 @@ Publishing a release and testing the install one-liners: [docs/RELEASING.md](doc
 **Is GitClient free?**
 Yes. It is open source under the MIT license, with no paid tier, account or license key.
 
-**Can I use the JetBrains (IntelliJ) Git tools without the IDE?**
-That is what GitClient is for: it reproduces the IntelliJ Log, Branches, Commit, interactive rebase
+**Can I use IDE-style Git tools without an IDE?**
+That is what GitClient is for: it provides Log, Branches, Commit, interactive rebase
 and merge-conflict tools as a standalone app that works with any editor.
 
 **Which platforms are supported?**

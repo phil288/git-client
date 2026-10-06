@@ -96,7 +96,7 @@ function RollbackDialog({ root, entries, onClose }: { root: string; entries: Sta
   )
 }
 
-/** JetBrains Commit tool window: changes tree with staging checkboxes, hunks/diff, message and commit. */
+/** Commit tool window: changes tree with staging checkboxes, hunks/diff, message and commit. */
 export function ChangesView({ tab }: { tab: TabRef }) {
   const root = tab.path
   const status = useWorkingStatus(root)

@@ -47,7 +47,7 @@ interface Props {
   ) => React.ReactNode
 }
 
-/** JetBrains "Log" tab: filters, graph table, details and diff. */
+/** Log tab: filters, graph table, details and diff. */
 export function LogView({ tab, headSha, detached, sidebar, renderMenu }: Props) {
   const root = tab.path
   const epoch = useEpoch(root)

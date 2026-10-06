@@ -3,7 +3,7 @@
 /*
  * Theme tokens. The OS (or Settings → Theme, via nativeTheme.themeSource)
  * drives prefers-color-scheme; no class toggling needed.
- * Palette follows the JetBrains "New UI" light/dark themes.
+ * Neutral light/dark palette.
  */
 :root {
   --bg: #ffffff;
@@ -65,7 +65,7 @@
   --color-success: var(--success);
   --color-warning: var(--warning);
   --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', 'Ubuntu', 'Cantarell', sans-serif;
-  --font-mono: 'JetBrains Mono', 'Cascadia Mono', 'Ubuntu Mono', 'DejaVu Sans Mono', monospace;
+  --font-mono: 'Cascadia Mono', 'Ubuntu Mono', 'DejaVu Sans Mono', monospace;
 }
 
 html,

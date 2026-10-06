@@ -2,7 +2,7 @@ import { Cloud, GitBranch, Tag } from 'lucide-react'
 import type { Ref } from '@shared/types'
 import { cn } from '@/lib/utils'
 
-/** Branch / remote / tag chips, styled per kind (JetBrains Log labels). */
+/** Branch / remote / tag chips, styled per kind. */
 export function RefLabels({ refs, detachedHead, max = 3 }: { refs: Ref[]; detachedHead?: boolean; max?: number }) {
   if (refs.length === 0 && !detachedHead) return null
   const sorted = [...refs].sort((a, b) => Number(b.isHead) - Number(a.isHead) || order(a) - order(b))

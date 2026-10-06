@@ -6,7 +6,7 @@
 
 ## Context
 
-Greenfield Electron Git client modeled on JetBrains Git tooling. Milestone 1 covers the project
+Greenfield Electron Git client modeled on classic IDE Git tooling. Milestone 1 covers the project
 scaffold, security model, typed IPC, `GitService` with git detection and the command console,
 packaging config, and all repository management: welcome screen, recents (search, pin, groups,
 missing repos), open / drag-and-drop / init / clone / scan, tabs, repo switcher, quick switcher,

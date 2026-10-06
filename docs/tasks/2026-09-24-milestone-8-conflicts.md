@@ -8,7 +8,7 @@
 
 Conflicts from merge, rebase (incl. interactive/squash/reword), cherry-pick, revert, pull and stash
 apply/pop, handled uniformly: banner, conflicts dialog with honest Yours/Theirs labels, simple-conflict
-auto-resolution, a JetBrains-style 3-way merge editor, special conflict types, merge-tree preview,
+auto-resolution, an IDE-style 3-way merge editor, special conflict types, merge-tree preview,
 rerere and external tool support.
 
 ## Decisions

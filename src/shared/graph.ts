@@ -1,5 +1,5 @@
 /**
- * Commit graph lane layout, JetBrains/`git log --graph` style.
+ * Commit graph lane layout, `git log --graph` style.
  *
  * Input commits must be ordered children-before-parents (git log
  * --date-order or --topo-order). Layout is incremental: the state carries the

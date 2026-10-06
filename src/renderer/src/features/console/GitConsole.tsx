@@ -60,7 +60,7 @@ const Entry = memo(function Entry({ e }: { e: CommandLogEntry }) {
   )
 })
 
-/** JetBrains-style Console tab: every git command, its duration, exit code and stderr. */
+/** Console tab: every git command, its duration, exit code and stderr. */
 export function GitConsole() {
   const entries = useConsoleStore((s) => s.entries)
   const setEntries = useConsoleStore((s) => s.set)

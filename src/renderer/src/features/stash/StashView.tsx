@@ -51,7 +51,7 @@ function StashDetails({ root, s }: { root: string; s: StashEntry }) {
   )
 }
 
-/** JetBrains Stash/Shelf tool window. */
+/** Stash tool window. */
 export function StashView({ tab }: { tab: TabRef }) {
   const root = tab.path
   const q = useStashes(root)

@@ -20,7 +20,7 @@ interface Props {
   onToggleFavorite(): void
 }
 
-/** Branch / remote-branch / tag actions (JetBrains Branches popup). */
+/** Branch / remote-branch / tag actions. */
 export function BranchMenu({ root, r, currentBranch, favorite, onToggleFavorite }: Props) {
   const isCurrent = r.kind === 'local' && r.short === currentBranch
   const cur = currentBranch ?? 'HEAD'

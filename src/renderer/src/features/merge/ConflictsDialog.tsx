@@ -130,7 +130,7 @@ function SpecialPanel({ root, f, st, after }: { root: string; f: ConflictFile; s
   )
 }
 
-/** JetBrains "Merge Revisions" dialog: all conflicted files with correct side labels. */
+/** Merge conflicts dialog: all conflicted files with correct side labels. */
 export function ConflictsDialog({ root }: { root: string }) {
   const q = useConflictState(root)
   const st = q.data

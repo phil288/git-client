@@ -28,7 +28,7 @@ interface Props {
   openDiff(left: DiffSide, right: DiffSide, title?: string): void
 }
 
-/** Right-click menu of the log (single or multi-select), JetBrains order. */
+/** Right-click menu of the log (single or multi-select) */
 export function CommitMenu({ root, selected, headSha, currentBranch, branchCommits }: Props) {
   const single = selected.length === 1 ? selected[0]! : null
   const onBranch = selected.every((c) => c.onCurrentBranch)

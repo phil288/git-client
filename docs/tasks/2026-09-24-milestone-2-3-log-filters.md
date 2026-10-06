@@ -6,7 +6,7 @@
 
 ## Context
 
-JetBrains "Log" tab: paged history with a lane graph that stays smooth at 100k+ commits, ref labels,
+IDE-style "Log" tab: paged history with a lane graph that stays smooth at 100k+ commits, ref labels,
 commit details with changed files, Monaco diff, then text/branch/user/date/path filters and Go to.
 
 ## Decisions

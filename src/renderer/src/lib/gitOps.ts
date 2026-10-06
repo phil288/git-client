@@ -77,7 +77,7 @@ export function refToTarget(r: Ref): CheckoutTarget {
   return { kind: 'tag', name: r.short }
 }
 
-/** Checkout with the JetBrains flow: detached-HEAD warning, Smart / Force checkout on local changes. */
+/** Checkout flow: detached-HEAD warning, Smart / Force checkout on local changes. */
 export async function checkoutFlow(root: string, t: CheckoutTarget): Promise<void> {
   const detached = t.kind === 'tag' || t.kind === 'commit'
   if (detached) {

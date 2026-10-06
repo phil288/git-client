@@ -420,7 +420,7 @@ USAGE
 [Desktop Entry]
 Type=Application
 Name=GitClient
-Comment=Git client modeled on the JetBrains IDE Git tooling
+Comment=Git client with IDE-style Git tooling
 Exec="$USER_DIR/$APP" %U
 Icon=gitclient
 Terminal=false
