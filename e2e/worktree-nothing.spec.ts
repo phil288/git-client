@@ -34,7 +34,15 @@ test('merge of a worktree whose work is uncommitted: explained, blocked, and nev
   const page = await app.firstWindow()
   await page.getByTestId('log-row').first().waitFor()
 
-  // Nothing committed: the dialog says so, Merge is disabled, cleanup is unavailable.
+  // Nothing committed: the bar and the Worktrees list say so up front.
+  await expect(page.getByTestId('bar-nothing-to-merge')).toContainText('Nothing committed to merge into main')
+  await expect(page.getByTestId('bar-nothing-to-merge')).toContainText('2 uncommitted changes')
+  await page.getByTestId('stripe-worktrees').click()
+  const featRow = page.getByTestId('worktree-row').filter({ hasText: 'repo-feat' })
+  await expect(featRow.getByTestId('wt-nothing-to-merge')).toContainText('nothing committed to merge')
+  await expect(featRow.getByTestId('wt-merge')).toHaveCount(0)
+
+  // The dialog says so too, Merge is disabled, cleanup is unavailable.
   await page.getByTestId('bar-merge').click()
   await expect(page.getByTestId('wt-merge-nothing')).toContainText('Nothing to merge')
   await expect(page.getByTestId('wt-merge-nothing')).toContainText('2 uncommitted changes')
@@ -50,6 +58,7 @@ test('merge of a worktree whose work is uncommitted: explained, blocked, and nev
   git(wt, 'add', 'a.txt')
   git(wt, 'commit', '-q', '-m', 'feature commit')
   await page.getByTestId('stripe-log').click()
+  await expect(page.getByTestId('bar-nothing-to-merge')).toHaveCount(0)
   await page.getByTestId('bar-merge').click()
   await expect(page.getByTestId('wt-merge-count')).toContainText('1 commit')
   await expect(page.getByTestId('wt-merge-cleanup')).toBeDisabled()
@@ -62,5 +71,7 @@ test('merge of a worktree whose work is uncommitted: explained, blocked, and nev
   expect(readFileSync(join(repo, 'a.txt'), 'utf8')).toBe('uncommitted work\n')
   expect(existsSync(join(wt, 'new.txt'))).toBe(true)
   expect(git(repo, 'branch', '--list', 'feat').trim()).toContain('feat')
+  // Merged back: only the uncommitted file is left, and the bar says nothing committed remains.
+  await expect(page.getByTestId('bar-nothing-to-merge')).toContainText('1 uncommitted change')
   await app.close()
 })

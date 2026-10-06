@@ -45,8 +45,19 @@ export function usePendingMerges(root: string) {
 }
 
 /** Uncommitted-change count of another worktree (quick status works on any path). */
-function useChangedCount(path: string) {
-  return useQuery({ queryKey: ['quickStatus', path, 'worktree'], queryFn: () => api.repo.quickStatus(path) }).data?.changedCount ?? null
+export function useChangedCount(path: string, enabled = true) {
+  return useQuery({ queryKey: ['quickStatus', path, 'worktree'], queryFn: () => api.repo.quickStatus(path), enabled }).data?.changedCount ?? null
+}
+
+/** Commits of `source` not in `target` yet; null while unknown or when either is missing. */
+export function useCommitsToMerge(root: string, source: string | null, target: string | null | undefined) {
+  return (
+    useQuery({
+      queryKey: ['repo', root, 'commitsToMerge', source, target],
+      queryFn: () => api.worktree.commitsToMerge(root, source!, target!),
+      enabled: !!source && !!target && source !== target
+    }).data ?? null
+  )
 }
 
 export function AddWorktreeDialog({ root, start }: { root: string; start?: string }) {
@@ -284,12 +295,7 @@ export function MergeWorktreeDialog({ root, worktree: w }: { root: string; workt
   const t = target ?? (def && def !== w.branch ? def : (locals[0] ?? ''))
   const host = (wts.data ?? []).find((x) => x.branch === t && !x.prunable)
   const dirty = (changed ?? 0) > 0
-  const aheadQ = useQuery({
-    queryKey: ['repo', root, 'commitsToMerge', w.branch, t],
-    queryFn: () => api.worktree.commitsToMerge(root, w.branch!, t),
-    enabled: !!w.branch && !!t
-  })
-  const ahead = aheadQ.data ?? null
+  const ahead = useCommitsToMerge(root, w.branch, t)
 
   return (
     <Dialog {...useOpen()}>

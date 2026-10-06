@@ -1,5 +1,5 @@
 import { toast } from 'sonner'
-import { AlertTriangle, ExternalLink, FolderOpen, FolderTree, GitMerge, Lock, LockOpen, Plus, RefreshCw, Terminal, Trash2 } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ExternalLink, FolderOpen, FolderTree, GitMerge, Lock, LockOpen, Plus, RefreshCw, Terminal, Trash2 } from 'lucide-react'
 import type { PendingMerge, WorktreeEntry } from '@shared/types'
 import { api } from '@/lib/api'
 import { refreshRepo, reportOutcome } from '@/lib/gitOps'
@@ -11,16 +11,17 @@ import { openModal } from '@/stores/modals'
 import type { TabRef } from '@/stores/tabs'
 import { Button } from '@/components/ui/button'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu'
-import { useDefaultBranch, usePendingMerges, useWorktrees } from './WorktreeDialogs'
+import { useChangedCount, useCommitsToMerge, useDefaultBranch, usePendingMerges, useWorktrees } from './WorktreeDialogs'
 import { pendingMergeOf, removeWorktreeFlow, samePath } from './worktreeFlows'
 
-function Badge({ children, tone = 'muted' }: { children: React.ReactNode; tone?: 'muted' | 'accent' | 'warning' | 'danger' }) {
+function Badge({ children, tone = 'muted' }: { children: React.ReactNode; tone?: 'muted' | 'accent' | 'success' | 'warning' | 'danger' }) {
   return (
     <span
       className={cn(
         'rounded px-1 text-[10px] uppercase leading-4',
         tone === 'muted' && 'bg-hover text-muted',
         tone === 'accent' && 'bg-accent/15 text-accent',
+        tone === 'success' && 'bg-success/15 text-success',
         tone === 'warning' && 'bg-warning/15 text-warning',
         tone === 'danger' && 'bg-danger/15 text-danger'
       )}
@@ -75,10 +76,27 @@ const abortMergeFlow = async (root: string, p: PendingMerge) => {
   })
 }
 
+/**
+ * Whether merging this worktree's branch into the default branch would bring
+ * nothing in. `dirty` counts uncommitted changes, which a merge never takes.
+ */
+function useNothingToMerge(root: string, w: WorktreeEntry | undefined, def: string | null | undefined) {
+  const eligible = !!w?.branch && !w.prunable && !!def && w.branch !== def
+  const ahead = useCommitsToMerge(root, eligible ? w.branch : null, def)
+  const dirty = useChangedCount(w?.path ?? root, eligible && ahead === 0) ?? 0
+  return eligible && ahead === 0 ? { dirty } : null
+}
+
+const nothingTitle = (branch: string | null, def: string | null | undefined, dirty: number) =>
+  `Every commit of ${branch ?? ''} is already in ${def ?? ''}.` +
+  (dirty > 0 ? ` ${dirty} uncommitted change${dirty === 1 ? '' : 's'} here: commit them to have something to merge.` : '')
+
 /** Actions for one worktree; shared by the row buttons and its context menu. While its branch is being merged, merge/remove are withheld. */
 function useActions(root: string, w: WorktreeEntry, def: string | null | undefined, pending: PendingMerge | undefined) {
   const canMerge = !!w.branch && !w.prunable && !pending && (def ? w.branch !== def : true)
+  const nothing = useNothingToMerge(root, w, def)
   return {
+    nothing,
     open: () => void openRepoPath(w.path, 'new-tab'),
     merge: canMerge ? () => openModal({ kind: 'mergeWorktree', root, worktree: w }) : null,
     remove: w.isMain || pending ? null : w.prunable ? () => pruneFlow(root, 1) : () => openModal({ kind: 'removeWorktree', root, worktree: w }),
@@ -111,6 +129,13 @@ function WorktreeRow({ root, w, def, pending }: { root: string; w: WorktreeEntry
                 </span>
               )}
               {w.prunable && <Badge tone="danger">missing</Badge>}
+              {a.nothing && !pending && (
+                <span title={nothingTitle(w.branch, def, a.nothing.dirty)} data-testid="wt-nothing-to-merge" data-dirty={a.nothing.dirty > 0}>
+                  <Badge tone={a.nothing.dirty > 0 ? 'warning' : 'success'}>
+                    {a.nothing.dirty > 0 ? `nothing committed to merge · ${a.nothing.dirty} uncommitted` : `nothing to merge into ${def}`}
+                  </Badge>
+                </span>
+              )}
               {pending && (
                 <span title={`Unfinished merge into ${pending.into ?? 'HEAD'} in ${pending.path}`}>
                   <Badge tone="danger">merge into {pending.into ?? 'HEAD'} unfinished</Badge>
@@ -132,7 +157,7 @@ function WorktreeRow({ root, w, def, pending }: { root: string; w: WorktreeEntry
                 <AlertTriangle /> Resolve…
               </Button>
             )}
-            {a.merge && (
+            {a.merge && !a.nothing && (
               <Button size="sm" variant="ghost" title={`Merge ${w.branch} into ${def ?? 'another branch'}…`} onClick={a.merge} data-testid="wt-merge">
                 <GitMerge /> Merge into {def ?? '…'}
               </Button>
@@ -186,6 +211,7 @@ export function LinkedWorktreeBar({ root }: { root: string }) {
   const pendingAll = usePendingMerges(root).data
   const w = list?.find((x) => samePath(x.path, root))
   const main = list?.find((x) => x.isMain)
+  const nothing = useNothingToMerge(root, w, def)
   if (!w || w.isMain) return null
   const pending = pendingMergeOf(pendingAll, w.branch)
   if (pending) {
@@ -222,8 +248,20 @@ export function LinkedWorktreeBar({ root }: { root: string }) {
         </button>
       )}
       <div className="flex-1" />
+      {nothing && (
+        <span
+          className={cn('inline-flex items-center gap-1', nothing.dirty > 0 ? 'text-warning' : 'text-success')}
+          title={nothingTitle(w.branch, def, nothing.dirty)}
+          data-testid="bar-nothing-to-merge"
+        >
+          {nothing.dirty > 0 ? <AlertTriangle className="size-3.5" /> : <CheckCircle2 className="size-3.5" />}
+          {nothing.dirty > 0
+            ? `Nothing committed to merge into ${def} · ${nothing.dirty} uncommitted change${nothing.dirty === 1 ? '' : 's'}`
+            : `Nothing to merge: ${def} already has every commit`}
+        </span>
+      )}
       {canMerge && (
-        <Button size="sm" variant="secondary" onClick={() => openModal({ kind: 'mergeWorktree', root, worktree: w })} data-testid="bar-merge">
+        <Button size="sm" variant={nothing ? 'ghost' : 'secondary'} onClick={() => openModal({ kind: 'mergeWorktree', root, worktree: w })} data-testid="bar-merge">
           <GitMerge /> Merge into {def ?? '…'}…
         </Button>
       )}
