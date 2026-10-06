@@ -38,3 +38,4 @@ Decision records per task (not a changelog). Copy [`_TEMPLATE.md`](_TEMPLATE.md)
 | 2026-10-06 | [Remotes view: add / edit / test / remove remotes](2026-10-06-remotes-view.md) | done |
 | 2026-10-06 | [Repository made public: repo slug + README](2026-10-06-public-repo-readme.md) | done |
 | 2026-10-06 | [Discoverability (SEO) and AI-agent readiness](2026-10-06-discoverability-ai-ready.md) | done |
+| 2026-10-06 | [CI: actions off Node 20, runner image pinned](2026-10-06-ci-actions-node24.md) | done |

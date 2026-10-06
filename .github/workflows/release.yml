@@ -21,10 +21,10 @@ env:
 jobs:
   verify-version:
     name: Tag matches package.json
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Compare tag and version
         run: |
           version=$(node -p "require('./package.json').version")
@@ -41,7 +41,7 @@ jobs:
   create-release:
     name: Create draft release
     needs: verify-version
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -65,7 +65,7 @@ jobs:
       matrix:
         include:
           - name: linux-x64 (deb, AppImage, tar.gz)
-            os: ubuntu-latest
+            os: ubuntu-24.04
             targets: --linux --x64
           - name: windows-x64 (nsis)
             os: windows-latest
@@ -76,9 +76,9 @@ jobs:
         # -c.publish.owner=x at the dots.
         shell: bash
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -109,13 +109,13 @@ jobs:
   build-linux-arm64:
     name: Build (linux-arm64, best effort)
     needs: create-release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -143,7 +143,7 @@ jobs:
     needs: [build, build-linux-arm64]
     # Run even if the arm64 build failed, but never when an x64 build failed.
     if: ${{ !cancelled() && needs.build.result == 'success' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
