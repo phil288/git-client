@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import type { Settings } from '@shared/types'
+import { AI_TOOLS, AI_TOOL_LABEL, type Settings } from '@shared/types'
 import { api } from '@/lib/api'
 import { notifyError, run } from '@/lib/notify'
 import { useAppStore } from '@/stores/app'
@@ -45,6 +45,11 @@ export function SettingsDialog() {
   const os = useQuery({ queryKey: ['os-integration'], queryFn: () => api.os.integration() })
   const rerere = useQuery({ queryKey: ['rerere', activeRoot], queryFn: () => api.conflicts.getRerere(activeRoot!), enabled: !!activeRoot })
   const tool = useQuery({ queryKey: ['configured-tool', activeRoot], queryFn: () => api.conflicts.configuredTool(activeRoot!), enabled: !!activeRoot })
+
+  const aiTools = useQuery({ queryKey: ['ai-tools'], queryFn: () => api.ai.tools(), staleTime: 0, refetchOnMount: 'always' })
+  const aiPath = s.aiCommitTool === 'auto' ? aiTools.data?.find((t) => t.path)?.path : aiTools.data?.find((t) => t.id === s.aiCommitTool)?.path
+
+  const aiHelp = 'Prompt is sent to the CLI on stdin; the CLI runs in read-only mode in the repository folder.'
 
   const set = <K extends keyof Settings>(key: K, value: Settings[K]) => {
     update({ [key]: value } as Partial<Settings>).catch((err) => notifyError(err, 'Could not save the setting'))
@@ -136,6 +141,23 @@ export function SettingsDialog() {
         </Section>
 
         <Section title="Tools">
+          <Row
+            label="AI commit messages"
+            help={aiPath ? `Using ${aiPath}. ${aiHelp}` : aiHelp}
+          >
+            <select className={select} value={s.aiCommitTool} onChange={(e) => set('aiCommitTool', e.target.value as Settings['aiCommitTool'])} data-testid="ai-tool-select">
+              <option value="auto">Auto-detect (first installed)</option>
+              {AI_TOOLS.map((id) => (
+                <option key={id} value={id}>
+                  {AI_TOOL_LABEL[id]}
+                  {aiTools.data && aiTools.data.find((t) => t.id === id)?.path === null ? ' (not installed)' : ''}
+                </option>
+              ))}
+            </select>
+            <Button size="sm" variant="ghost" disabled={aiTools.isFetching} onClick={() => void aiTools.refetch()}>
+              Refresh
+            </Button>
+          </Row>
           <Row label="Editor command" help="Used by “Open in Editor”; the path is appended">
             <Input value={s.editorCommand} onChange={(e) => set('editorCommand', e.target.value)} placeholder="code" />
           </Row>

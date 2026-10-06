@@ -22,6 +22,7 @@ import { registerWorkingTreeHandlers } from './handlers/workingTree'
 import { registerM7Handlers } from './handlers/m7'
 import { registerWorktreeHandlers } from './handlers/worktrees'
 import { registerConflictHandlers } from './handlers/conflicts'
+import { registerAiHandlers } from './handlers/ai'
 import { initEditors } from './git/editors'
 import type { MainContext } from './context'
 import { locateGit } from './git/locate'
@@ -333,6 +334,7 @@ async function main(): Promise<void> {
   registerM7Handlers(ctx)
   registerWorktreeHandlers(ctx)
   registerConflictHandlers(ctx, () => (gitStatus.state === 'missing' ? [0, 0, 0] : gitStatus.git.versionParts))
+  registerAiHandlers(ctx)
 
   // ---------------------------------------------------------------------------
   // Window lifecycle

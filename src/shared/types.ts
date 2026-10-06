@@ -199,6 +199,8 @@ export interface Settings {
   mergeTool: string
   /** Initial state of the "Force (-f -f)" checkbox in the Remove Worktree dialog. */
   worktreeForceRemove: boolean
+  /** CLI used by "Generate commit message"; 'auto' = first installed tool in AI_TOOLS order. */
+  aiCommitTool: AiTool | 'auto'
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -218,7 +220,37 @@ export const DEFAULT_SETTINGS: Settings = {
   confirmPush: true,
   checkForUpdates: true,
   mergeTool: '',
-  worktreeForceRemove: false
+  worktreeForceRemove: false,
+  aiCommitTool: 'auto'
+}
+
+// ---------------------------------------------------------------------------
+// AI commit message generation (external coding-agent CLIs)
+// ---------------------------------------------------------------------------
+
+/** Supported coding-agent CLIs, in auto-detection priority order. */
+export const AI_TOOLS = ['claude', 'codex', 'copilot', 'cursor', 'gemini'] as const
+export type AiTool = (typeof AI_TOOLS)[number]
+
+export const AI_TOOL_LABEL: Record<AiTool, string> = {
+  claude: 'Claude Code',
+  codex: 'OpenAI Codex',
+  copilot: 'GitHub Copilot',
+  cursor: 'Cursor Agent',
+  gemini: 'Gemini CLI'
+}
+
+export interface AiToolInfo {
+  id: AiTool
+  label: string
+  /** Resolved executable path, or null when not installed. */
+  path: string | null
+}
+
+export interface AiCommitResult {
+  message: string
+  /** Tool that produced the message (relevant when the setting is 'auto'). */
+  tool: AiTool
 }
 
 // ---------------------------------------------------------------------------

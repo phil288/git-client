@@ -1,4 +1,6 @@
 import type {
+  AiCommitResult,
+  AiToolInfo,
   AppInfo,
   CommitDetails,
   ContainingRefs,
@@ -201,6 +203,10 @@ export interface IpcInvokeMap {
   'wt:commit': [[root: string, message: string, options: { amend: boolean; signOff: boolean }], string]
   'wt:lastMessage': [[root: string], string]
 
+  // AI commit messages. Cancellable through 'ops:cancel' with the given opId.
+  'ai:tools': [[], AiToolInfo[]]
+  'ai:commitMessage': [[root: string, opId: string, options: { amend: boolean }], AiCommitResult]
+
   // M7 — stash, history, blame, tags, remotes
   'stash:list': [[root: string], StashEntry[]]
   'stash:files': [[root: string, index: number], { files: FileChange[]; untracked: FileChange[]; base: string; hash: string; untrackedCommit: string | null }]
@@ -395,6 +401,8 @@ const invokeChannelRecord = {
   'wt:discardHunks': true,
   'wt:commit': true,
   'wt:lastMessage': true,
+  'ai:tools': true,
+  'ai:commitMessage': true,
   'stash:list': true,
   'stash:files': true,
   'stash:push': true,

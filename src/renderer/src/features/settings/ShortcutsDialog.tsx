@@ -32,6 +32,7 @@ const GROUPS: { title: string; items: [string, string][] }[] = [
     title: 'Commit & merge',
     items: [
       ['Ctrl+Enter', 'Commit (Shift: commit and push)'],
+      ['Ctrl+Shift+G', 'Generate commit message with the AI CLI (Commit view)'],
       ['F7 / Shift+F7', 'Next / previous conflict in the merge editor'],
       ['Ctrl+Z / Ctrl+Y', 'Undo / redo in the merge result (actions included)'],
       ['Delete', 'Delete selected branches (branches panel)']

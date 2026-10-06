@@ -100,7 +100,8 @@ const schema: Schema<PersistedState> = {
       confirmPush: { type: 'boolean' },
       checkForUpdates: { type: 'boolean' },
       mergeTool: { type: 'string' },
-      worktreeForceRemove: { type: 'boolean' }
+      worktreeForceRemove: { type: 'boolean' },
+      aiCommitTool: { enum: ['auto', 'claude', 'codex', 'copilot', 'cursor', 'gemini'] }
     }
   }
 }

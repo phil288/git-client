@@ -105,6 +105,10 @@ export const api = {
     commit: (root: string, message: string, options: { amend: boolean; signOff: boolean }) => call('wt:commit', root, message, options),
     lastMessage: (root: string) => call('wt:lastMessage', root)
   },
+  ai: {
+    tools: () => call('ai:tools'),
+    commitMessage: (root: string, opId: string, options: { amend: boolean }) => call('ai:commitMessage', root, opId, options)
+  },
   stash: {
     list: (root: string) => call('stash:list', root),
     files: (root: string, index: number) => call('stash:files', root, index),
