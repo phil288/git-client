@@ -43,3 +43,4 @@ Decision records per task (not a changelog). Copy [`_TEMPLATE.md`](_TEMPLATE.md)
 | 2026-10-06 | [AI-generated commit messages via coding-agent CLIs](2026-10-06-ai-commit-message.md) | done |
 | 2026-10-06 | [AI CLI detection uses target-platform path rules](2026-10-06-ai-detect-platform-paths.md) | done |
 | 2026-10-06 | [Worktree list shows when there is nothing to merge](2026-10-06-worktree-nothing-to-merge.md) | done |
+| 2026-10-06 | [Fix open Dependabot security alerts](2026-10-06-dependabot-alerts.md) | done |
