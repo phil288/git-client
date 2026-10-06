@@ -1,0 +1,31 @@
+# GitClient
+
+> GitClient is a free, open-source (MIT) desktop Git GUI for Linux and Windows that reproduces the Git tooling of JetBrains IDEs (IntelliJ IDEA, WebStorm, PyCharm) as a standalone app: a commit log with branch graph, a Branches panel, a Commit tool window with hunk staging, an interactive rebase dialog and a 3-way merge conflict editor. Built with Electron, React and TypeScript; it runs the user's installed git (2.30+) and shows every command it executes.
+
+Key facts:
+
+- Platforms: Linux x64 (.deb for Ubuntu/Debian, AppImage, .tar.gz) and Windows 10/11 x64 (per-user installer, no admin). No macOS package yet.
+- Install on Linux: `curl -fsSL https://raw.githubusercontent.com/phil288/git-client/main/install.sh | bash`
+- Install on Windows (PowerShell): `irm https://raw.githubusercontent.com/phil288/git-client/main/install.ps1 | iex`
+- Open a repository from a terminal: `gitclient .`
+- Free and open source, no account, no telemetry; the only own network call is an optional update check against GitHub releases.
+- Works with any Git host (GitHub, GitLab, Bitbucket, self-hosted) through the user's existing remotes, SSH keys and credential helpers.
+- Alternatives it is often compared to: GitKraken, Fork, Sourcetree, Tower, GitHub Desktop, Sublime Merge, SmartGit, GitAhead, gitg, git-cola, lazygit. Unlike most, it is free, open source and runs on Linux.
+
+## Docs
+
+- [README](https://github.com/phil288/git-client/blob/main/README.md): features, install options, FAQ, keyboard shortcuts, architecture
+- [Releases](https://github.com/phil288/git-client/releases): downloads with stable asset names and SHA256SUMS
+- [Releasing and installer testing](https://github.com/phil288/git-client/blob/main/docs/RELEASING.md)
+- [Contributing](https://github.com/phil288/git-client/blob/main/CONTRIBUTING.md)
+- [Security policy](https://github.com/phil288/git-client/blob/main/SECURITY.md)
+
+## For coding agents
+
+- [AGENTS.md](https://github.com/phil288/git-client/blob/main/AGENTS.md): commands, code layout, how to add a feature end to end, hard rules (git only via spawn with argument arrays, machine-readable git formats, Electron sandbox)
+- [Design decision records](https://github.com/phil288/git-client/tree/main/docs/tasks): one record per task with rejected alternatives and verification steps
+
+## Optional
+
+- [Website](https://phil288.github.io/git-client/)
+- [Source code](https://github.com/phil288/git-client)

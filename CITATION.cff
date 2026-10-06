@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you reference GitClient, please cite it as below."
+title: "GitClient: a free, open-source Git GUI for Linux and Windows"
+type: software
+authors:
+  - name: "GitClient contributors"
+repository-code: "https://github.com/phil288/git-client"
+url: "https://phil288.github.io/git-client/"
+license: MIT
+version: 0.1.0
+keywords:
+  - git
+  - git client
+  - git gui
+  - electron
+  - merge tool
+  - interactive rebase

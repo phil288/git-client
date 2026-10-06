@@ -38,7 +38,8 @@ linux:
   syncDesktopName: true
   desktop:
     entry:
-      Keywords: git;vcs;version control;
+      GenericName: Git Client
+      Keywords: git;vcs;version control;commit;branch;merge;rebase;diff;history;github;gitlab;
 
 # ${arch} is "amd64" for deb and "x86_64" for AppImage, so those two get
 # explicit x64 names. An arm64 build overrides them on the command line, e.g.

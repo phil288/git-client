@@ -3,16 +3,37 @@
   "productName": "GitClient",
   "desktopName": "gitclient.desktop",
   "version": "0.1.0",
-  "description": "Cross-platform Git client modeled on the JetBrains IDE Git tooling",
+  "description": "Free, open-source Git GUI for Linux and Windows modeled on the JetBrains IDE Git tooling: commit graph, branches, interactive rebase and a 3-way merge tool",
+  "keywords": [
+    "git",
+    "git-client",
+    "git-gui",
+    "gui",
+    "desktop-app",
+    "electron",
+    "react",
+    "typescript",
+    "version-control",
+    "vcs",
+    "merge-tool",
+    "diff",
+    "interactive-rebase",
+    "commit-graph",
+    "jetbrains",
+    "intellij",
+    "linux",
+    "windows",
+    "ubuntu"
+  ],
   "main": "./out/main/index.js",
   "author": {
     "name": "GitClient contributors",
     "email": "noreply@users.noreply.github.com"
   },
-  "homepage": "https://github.com/<OWNER>/<REPO>",
+  "homepage": "https://github.com/phil288/git-client",
   "repository": {
     "type": "git",
-    "url": "https://github.com/<OWNER>/<REPO>.git"
+    "url": "https://github.com/phil288/git-client.git"
   },
   "license": "MIT",
   "private": true,

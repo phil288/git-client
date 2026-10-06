@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # GitClient installer for Linux.
 #
-#   curl -fsSL https://raw.githubusercontent.com/<OWNER>/<REPO>/main/install.sh | bash
-#   curl -fsSL https://raw.githubusercontent.com/<OWNER>/<REPO>/main/install.sh | bash -s -- --user
+#   curl -fsSL https://raw.githubusercontent.com/phil288/git-client/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/phil288/git-client/main/install.sh | bash -s -- --user
 #
 # Options (flag or environment variable):
 #   --user                 Install into ~/.local without sudo (any distro). Default on non-Debian systems.
@@ -13,7 +13,7 @@
 #   --remote               In a repository clone: download a release instead of using dist/.
 #   --rebuild              In a repository clone: rebuild the package even if dist/ is up to date.
 #   -h, --help             Show this help.
-#   GITHUB_TOKEN           Token for private repositories.
+#   GITHUB_TOKEN           Optional token (private forks, higher API rate limit).
 #
 # Running it again upgrades to the latest (or the pinned) version.
 #
@@ -32,7 +32,7 @@ main() {
   # Configuration
   # ---------------------------------------------------------------------------
   # Keep in sync with "repository" in package.json (a unit test checks this).
-  local DEFAULT_REPO='<OWNER>/<REPO>'
+  local DEFAULT_REPO='phil288/git-client'
   local REPO="${GITCLIENT_REPO:-$DEFAULT_REPO}"
   # Overridable for testing against a local mirror (file:// works too).
   local RELEASES_URL="${GITCLIENT_RELEASES_URL:-https://github.com/${REPO}/releases}"
@@ -80,7 +80,7 @@ Usage: install.sh [--user] [--version vX.Y.Z] [--uninstall [--purge]] [--quiet]
   --remote          In a repository clone: download a release instead of using the local build
   --rebuild         In a repository clone: rebuild dist/ even if it is up to date
 
-Environment: GITHUB_TOKEN (private repositories), NO_COLOR.
+Environment: GITHUB_TOKEN (optional: private forks, higher API rate limit), NO_COLOR.
 Running the installer again upgrades GitClient.
 Run from a clone of the repository, it installs the local build from dist/ (building it if needed).
 USAGE

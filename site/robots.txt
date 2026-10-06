@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://phil288.github.io/git-client/sitemap.xml

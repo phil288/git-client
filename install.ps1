@@ -1,6 +1,6 @@
 # GitClient installer for Windows (Windows PowerShell 5.1 and PowerShell 7).
 #
-#   irm https://raw.githubusercontent.com/<OWNER>/<REPO>/main/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/phil288/git-client/main/install.ps1 | iex
 #
 # "irm | iex" cannot pass parameters, so every option also has an environment
 # variable (set it in the same PowerShell session first):
@@ -8,7 +8,7 @@
 #   $env:GITCLIENT_VERSION = 'v1.2.0'   Install that release instead of the latest   (-Version v1.2.0)
 #   $env:GITCLIENT_UNINSTALL = '1'      Remove GitClient; settings are kept          (-Uninstall)
 #   $env:GITCLIENT_QUIET = '1'          Only print errors and the final result       (-Quiet)
-#   $env:GITHUB_TOKEN = '...'           Token for private repositories
+#   $env:GITHUB_TOKEN = '...'           Optional token (private forks, higher API rate limit)
 #   $env:GITCLIENT_REPO / $env:GITCLIENT_RELEASES_URL / $env:GITCLIENT_API_URL
 #                                       Point at another repository or a mirror (file:// works)
 #   $env:NO_COLOR = '1'                 Plain output
@@ -51,7 +51,7 @@ function Install-GitClient {
     # Configuration
     # -------------------------------------------------------------------------
     # Keep in sync with "repository" in package.json (a unit test checks this).
-    $DefaultRepo = '<OWNER>/<REPO>'
+    $DefaultRepo = 'phil288/git-client'
     $Repo = $DefaultRepo
     if ($env:GITCLIENT_REPO) { $Repo = $env:GITCLIENT_REPO }
     # Overridable for testing against a local mirror (file:// works too).
@@ -94,7 +94,7 @@ Usage: install.ps1 [-Version vX.Y.Z] [-Uninstall] [-Quiet]
   -Uninstall     Remove GitClient; settings in %APPDATA%\GitClient are kept (env: GITCLIENT_UNINSTALL=1)
   -Quiet         Only print errors and the result (env: GITCLIENT_QUIET=1)
 
-Environment: GITHUB_TOKEN (private repositories), NO_COLOR.
+Environment: GITHUB_TOKEN (optional: private forks, higher API rate limit), NO_COLOR.
 Running the installer again upgrades GitClient.
 '@
         return

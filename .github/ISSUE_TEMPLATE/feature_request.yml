@@ -1,0 +1,16 @@
+name: Feature request
+description: Suggest an improvement or a missing Git workflow
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The workflow or problem, not only the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How should GitClient help?
+      description: If JetBrains IDEs or another Git client already do this well, describe how.

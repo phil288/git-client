@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GitClient — Free Open-Source Git GUI for Linux &amp; Windows</title>
+<meta name="description" content="GitClient is a free, open-source Git GUI for Linux and Windows with the JetBrains IDE Git tools: commit graph, branches, interactive rebase, hunk staging and a 3-way merge editor.">
+<meta name="keywords" content="git client, git gui, linux git client, git gui for windows, open source git client, free git client, 3-way merge tool, interactive rebase gui, commit graph, intellij git without ide, gitkraken alternative, sourcetree for linux">
+<link rel="canonical" href="https://phil288.github.io/git-client/">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<meta name="theme-color" content="#4f7cff">
+<link rel="icon" type="image/png" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="alternate" type="text/plain" title="llms.txt" href="llms.txt">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GitClient">
+<meta property="og:title" content="GitClient — Free Open-Source Git GUI for Linux & Windows">
+<meta property="og:description" content="The JetBrains IDE Git tools as a standalone app: commit graph, branches, interactive rebase and a 3-way merge editor. Free, MIT-licensed, no account.">
+<meta property="og:url" content="https://phil288.github.io/git-client/">
+<meta property="og:image" content="https://phil288.github.io/git-client/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="GitClient commit graph and diff view">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="GitClient — Free Open-Source Git GUI for Linux & Windows">
+<meta name="twitter:description" content="Commit graph, branches, interactive rebase and a 3-way merge editor. Free and open source.">
+<meta name="twitter:image" content="https://phil288.github.io/git-client/og.png">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://phil288.github.io/git-client/#app",
+      "name": "GitClient",
+      "alternateName": "GitClient Git GUI",
+      "description": "Free, open-source desktop Git GUI for Linux and Windows modeled on the JetBrains IDE Git tooling: commit graph, branches, commit window with hunk staging, interactive rebase and a 3-way merge editor.",
+      "applicationCategory": "DeveloperApplication",
+      "applicationSubCategory": "Version control",
+      "operatingSystem": "Linux, Windows 10, Windows 11",
+      "url": "https://phil288.github.io/git-client/",
+      "downloadUrl": "https://github.com/phil288/git-client/releases/latest",
+      "installUrl": "https://github.com/phil288/git-client#install",
+      "softwareVersion": "0.1.0",
+      "license": "https://opensource.org/licenses/MIT",
+      "isAccessibleForFree": true,
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "screenshot": [
+        "https://phil288.github.io/git-client/images/log-dark.png",
+        "https://phil288.github.io/git-client/images/merge-editor-dark.png"
+      ],
+      "image": "https://phil288.github.io/git-client/og.png",
+      "featureList": [
+        "Commit log with branch graph, tested on 100,000-commit repositories",
+        "Search and filter history by text, regex, hash, author, branch, date and path",
+        "Branch management: checkout, create, rename, delete, merge, rebase, compare, push and pull",
+        "Interactive rebase: reword, squash, fixup, drop and reorder with undo",
+        "Stage individual files or hunks, amend, sign-off, commit and push",
+        "3-way merge conflict editor with auto-resolve and rerere",
+        "Stash, blame, file history, tags, remotes and Git worktrees",
+        "Git Console showing every git command executed"
+      ],
+      "sameAs": ["https://github.com/phil288/git-client"]
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "name": "GitClient source code",
+      "codeRepository": "https://github.com/phil288/git-client",
+      "programmingLanguage": ["TypeScript", "React", "Electron"],
+      "license": "https://opensource.org/licenses/MIT",
+      "targetProduct": { "@id": "https://phil288.github.io/git-client/#app" }
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        { "@type": "Question", "name": "Is GitClient free?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. GitClient is open source under the MIT license, with no paid tier, account or license key." } },
+        { "@type": "Question", "name": "Can I use the IntelliJ / JetBrains Git tools without the IDE?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. GitClient reproduces the JetBrains Log, Branches, Commit, interactive rebase and merge-conflict tools as a standalone desktop app that works alongside any editor." } },
+        { "@type": "Question", "name": "Is there a good Git GUI for Linux?",
+          "acceptedAnswer": { "@type": "Answer", "text": "GitClient runs natively on Linux (Ubuntu and Debian .deb, AppImage and tarball) and Windows, unlike Fork, Tower and Sourcetree, and is free and open source unlike GitKraken and Sublime Merge." } },
+        { "@type": "Question", "name": "Does GitClient work with GitHub, GitLab and Bitbucket?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. It drives your installed git and uses your existing remotes, SSH keys and credential helpers, so it works with any Git host." } }
+      ]
+    }
+  ]
+}
+</script>
+
+<style>
+:root {
+  --bg: #ffffff; --fg: #1d2129; --muted: #5b6270; --card: #f4f6fa; --border: #dfe3ea;
+  --accent: #3a6cf4; --accent-fg: #ffffff; --code: #eef1f6;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #16181d; --fg: #e6e8ee; --muted: #9aa1ad; --card: #1f2229; --border: #2e323b;
+          --accent: #6b93ff; --accent-fg: #0d1020; --code: #262a33; }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg);
+  font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Ubuntu, Roboto, sans-serif; }
+a { color: var(--accent); }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+header.top { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; }
+.brand { display: flex; gap: 10px; align-items: center; font-weight: 700; font-size: 20px; color: var(--fg); text-decoration: none; }
+.brand img { width: 32px; height: 32px; border-radius: 8px; }
+nav a { color: var(--muted); text-decoration: none; margin-left: 18px; font-size: 15px; }
+nav a:hover { color: var(--fg); }
+.hero { text-align: center; padding: 48px 0 32px; }
+h1 { font-size: clamp(32px, 6vw, 52px); line-height: 1.1; margin: 0 0 16px; letter-spacing: -0.02em; }
+.lead { font-size: clamp(18px, 2.4vw, 21px); color: var(--muted); max-width: 760px; margin: 0 auto 28px; }
+.cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.btn { display: inline-block; padding: 12px 22px; border-radius: 10px; font-weight: 600; text-decoration: none; border: 1px solid var(--border); color: var(--fg); background: var(--card); }
+.btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.shot { margin: 40px auto 0; border-radius: 12px; border: 1px solid var(--border); overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+.shot img { display: block; width: 100%; height: auto; }
+section { padding: 56px 0 8px; }
+h2 { font-size: clamp(26px, 4vw, 34px); margin: 0 0 20px; letter-spacing: -0.01em; }
+h3 { margin: 0 0 6px; font-size: 18px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+.card p { margin: 0; color: var(--muted); font-size: 16px; }
+pre { background: var(--code); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; overflow-x: auto; font-size: 14px; margin: 8px 0 20px; }
+code { font-family: ui-monospace, "Cascadia Code", "JetBrains Mono", Menlo, monospace; }
+table { width: 100%; border-collapse: collapse; font-size: 15px; }
+.table-wrap { overflow-x: auto; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+th { color: var(--muted); font-weight: 600; }
+details { border-bottom: 1px solid var(--border); padding: 14px 0; }
+summary { cursor: pointer; font-weight: 600; }
+details p { color: var(--muted); margin: 10px 0 0; }
+footer { padding: 48px 0; color: var(--muted); font-size: 14px; text-align: center; }
+@media (max-width: 600px) { nav a:not(.gh) { display: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="./"><img src="icon.png" alt="" width="32" height="32">GitClient</a>
+    <nav>
+      <a href="#features">Features</a>
+      <a href="#install">Install</a>
+      <a href="#compare">Compare</a>
+      <a href="#faq">FAQ</a>
+      <a class="gh" href="https://github.com/phil288/git-client">GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="hero">
+      <h1>The JetBrains Git tools,<br>as a free standalone app</h1>
+      <p class="lead">GitClient is an open-source Git GUI for <strong>Linux</strong> and <strong>Windows</strong>:
+        commit graph, branches, hunk staging, interactive rebase and a 3-way merge editor — modeled on IntelliJ IDEA,
+        for whatever editor you use.</p>
+      <div class="cta">
+        <a class="btn primary" href="#install">Install GitClient</a>
+        <a class="btn" href="https://github.com/phil288/git-client">View on GitHub</a>
+      </div>
+      <div class="shot"><img src="images/log-dark.png" width="1920" height="1200"
+        alt="GitClient log view showing a commit graph with branches and tags, commit details and a side-by-side diff"></div>
+    </div>
+
+    <section id="features">
+      <h2>Features</h2>
+      <div class="grid">
+        <div class="card"><h3>Commit graph &amp; log</h3><p>Virtualized history with lane graph, branch and tag labels, commit details and Monaco diffs. Tested on 100,000-commit repositories.</p></div>
+        <div class="card"><h3>Search &amp; filters</h3><p>Filter by text, regex, hash, author, branch, date range and paths. Jump to any hash or ref.</p></div>
+        <div class="card"><h3>Branches</h3><p>Local and remote tree, favorites, smart checkout, merge, rebase, compare, fetch, pull, push and upstream tracking.</p></div>
+        <div class="card"><h3>Interactive rebase</h3><p>Reword, squash, fixup, drop and reorder in a dialog — with backup refs and one-click undo. Reset, revert, cherry-pick, reflog.</p></div>
+        <div class="card"><h3>Commit window</h3><p>Stage whole files or single hunks, discard, amend, sign-off, then commit and push in one step.</p></div>
+        <div class="card"><h3>3-way merge tool</h3><p>Correct Yours/Theirs labels for merge, rebase and cherry-pick, auto-resolve, per-chunk accept or remove, editable result, rerere.</p></div>
+        <div class="card"><h3>Stash, blame, worktrees</h3><p>Stash, file history, blame, tags, remotes, and full Git worktree management.</p></div>
+        <div class="card"><h3>Nothing hidden</h3><p>The Git Console shows every git command GitClient runs. No account, no telemetry, no cloud.</p></div>
+      </div>
+      <div class="shot"><img src="images/merge-editor-dark.png" width="1920" height="1200" loading="lazy"
+        alt="GitClient three-way merge editor resolving a rebase conflict with Yours, Result and Theirs panes"></div>
+    </section>
+
+    <section id="install">
+      <h2>Install</h2>
+      <h3>Linux (Ubuntu, Debian, other distros)</h3>
+      <pre><code>curl -fsSL https://raw.githubusercontent.com/phil288/git-client/main/install.sh | bash</code></pre>
+      <h3>Windows 10 / 11 (PowerShell)</h3>
+      <pre><code>irm https://raw.githubusercontent.com/phil288/git-client/main/install.ps1 | iex</code></pre>
+      <p>Both installers verify SHA-256 checksums. Prefer a manual download? Get the <code>.deb</code>, AppImage,
+        <code>.tar.gz</code> or Windows installer from the <a href="https://github.com/phil288/git-client/releases/latest">latest release</a>.
+        Then open any repository with <code>gitclient .</code></p>
+    </section>
+
+    <section id="compare">
+      <h2>How it compares</h2>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th></th><th>GitClient</th><th>GitKraken</th><th>Fork</th><th>Sourcetree</th><th>GitHub Desktop</th></tr></thead>
+        <tbody>
+          <tr><td>Free &amp; open source</td><td>Yes (MIT)</td><td>No</td><td>No</td><td>Free, closed</td><td>Yes</td></tr>
+          <tr><td>Linux</td><td>Yes</td><td>Yes</td><td>No</td><td>No</td><td>No (official)</td></tr>
+          <tr><td>Interactive rebase UI</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Partial</td></tr>
+          <tr><td>3-way merge editor</td><td>Built in</td><td>Built in</td><td>Built in</td><td>External tool</td><td>External tool</td></tr>
+          <tr><td>Account required</td><td>No</td><td>Yes</td><td>No</td><td>Yes</td><td>For GitHub features</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </section>
+
+    <section id="faq">
+      <h2>FAQ</h2>
+      <details open><summary>Is GitClient free?</summary><p>Yes. It is open source under the MIT license, with no paid tier, account or license key.</p></details>
+      <details><summary>Can I use the IntelliJ / JetBrains Git tools without the IDE?</summary><p>Yes — that is the point of GitClient. It reproduces the Log, Branches, Commit, interactive rebase and merge-conflict tools as a standalone app that works alongside VS Code, Neovim, Zed or the terminal.</p></details>
+      <details><summary>Is there a good Git GUI for Linux?</summary><p>GitClient runs natively on Linux (Ubuntu/Debian package, AppImage, tarball) and Windows, unlike Fork, Tower and Sourcetree, and is free and open source unlike GitKraken and Sublime Merge.</p></details>
+      <details><summary>Does it work with GitHub, GitLab and Bitbucket?</summary><p>Yes. It drives your installed git and uses your existing remotes, SSH keys and credential helpers, so it works with any Git host.</p></details>
+    </section>
+  </main>
+
+  <footer>
+    GitClient is MIT-licensed open source · <a href="https://github.com/phil288/git-client">Source on GitHub</a> ·
+    <a href="https://github.com/phil288/git-client/issues">Issues</a> · <a href="llms.txt">llms.txt</a>
+  </footer>
+</div>
+</body>
+</html>
