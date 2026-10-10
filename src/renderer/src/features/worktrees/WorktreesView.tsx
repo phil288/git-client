@@ -4,6 +4,7 @@ import type { PendingMerge, WorktreeEntry } from '@shared/types'
 import { api } from '@/lib/api'
 import { refreshRepo, reportOutcome } from '@/lib/gitOps'
 import { run } from '@/lib/notify'
+import { queryClient } from '@/lib/queryClient'
 import { openRepoPath } from '@/lib/repoActions'
 import { cn } from '@/lib/utils'
 import { confirm, prompt } from '@/stores/dialogs'
@@ -60,6 +61,16 @@ const forceRemoveFlow = async (root: string, w: WorktreeEntry) => {
     destructive: true
   })
   if (ok) await removeWorktreeFlow(root, w.path, 2, false)
+}
+
+/**
+ * Refresh the list and everything its badges derive from: commits made in another
+ * worktree's tab never invalidate this repo's commitsToMerge, nor the per-path
+ * quickStatus counts, so refetching the list alone left "nothing to merge" stale.
+ */
+const refreshAll = (root: string, list: WorktreeEntry[]) => {
+  refreshRepo(root)
+  for (const w of list) void queryClient.invalidateQueries({ queryKey: ['quickStatus', w.path] })
 }
 
 const abortMergeFlow = async (root: string, p: PendingMerge) => {
@@ -293,7 +304,7 @@ export function WorktreesView({ tab }: { tab: TabRef }) {
           </Button>
         )}
         <div className="flex-1" />
-        <Button size="icon-sm" variant="ghost" title="Refresh" onClick={() => void q.refetch()}>
+        <Button size="icon-sm" variant="ghost" title="Refresh" onClick={() => refreshAll(root, list)} data-testid="wt-refresh">
           <RefreshCw />
         </Button>
         <Button size="icon-sm" variant="ghost" title="Open in File Manager" onClick={() => run(() => api.shell.openInFileManager(root))}>

@@ -75,3 +75,30 @@ test('merge of a worktree whose work is uncommitted: explained, blocked, and nev
   await expect(page.getByTestId('bar-nothing-to-merge')).toContainText('1 uncommitted change')
   await app.close()
 })
+
+test('Refresh re-counts uncommitted changes of another worktree', async () => {
+  const repo = join(work, 'repo2')
+  mkdirSync(repo)
+  git(repo, 'init', '-q', '-b', 'main')
+  writeFileSync(join(repo, 'a.txt'), 'base\n')
+  git(repo, 'add', '.')
+  git(repo, 'commit', '-q', '-m', 'first')
+  const wt = join(work, 'repo2-feat')
+  git(repo, 'worktree', 'add', '-q', '-b', 'feat', wt)
+
+  const extra = process.env.CI || process.env.E2E_NO_SANDBOX ? ['--no-sandbox'] : []
+  const app = await electron.launch({ args: [APP_DIR, ...extra, repo], env: { ...process.env, GITCLIENT_USER_DATA: join(work, 'ud2') } as Record<string, string> })
+  const page = await app.firstWindow()
+  await page.getByTestId('log-row').first().waitFor()
+  await page.getByTestId('stripe-worktrees').click()
+  const featRow = page.getByTestId('worktree-row').filter({ hasText: 'repo2-feat' })
+  await expect(featRow.getByTestId('wt-nothing-to-merge')).toContainText('nothing to merge into main')
+
+  // Edited in that worktree: no .git change, so no watcher event; Refresh alone must pick it up.
+  writeFileSync(join(wt, 'a.txt'), 'feature\n')
+  await page.waitForTimeout(1000)
+  await expect(featRow.getByTestId('wt-nothing-to-merge')).toContainText('nothing to merge into main')
+  await page.getByTestId('wt-refresh').click()
+  await expect(featRow.getByTestId('wt-nothing-to-merge')).toContainText('1 uncommitted')
+  await app.close()
+})
