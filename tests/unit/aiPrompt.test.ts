@@ -150,6 +150,21 @@ describe('tool detection and invocation', () => {
     expect(() => buildInvocation('C:\\100%\\x.cmd', [], 'win32', {})).toThrow(/unsupported character/)
   })
 
+  it('adds --model only when set, before codex\'s trailing stdin marker', () => {
+    for (const spec of Object.values(AI_TOOL_SPECS)) {
+      expect(spec.args('/tmp/out.txt')).not.toContain('--model')
+      expect(spec.args('/tmp/out.txt', '')).toEqual(spec.args('/tmp/out.txt'))
+      const args = spec.args('/tmp/out.txt', 'my-model')
+      expect(args[args.indexOf('--model') + 1]).toBe('my-model')
+    }
+    expect(AI_TOOL_SPECS.codex.args('/tmp/out.txt', 'gpt-5').slice(-5)).toEqual(['--model', 'gpt-5', '-o', '/tmp/out.txt', '-'])
+  })
+
+  it('keeps a model name intact on the cmd.exe shim line', () => {
+    const shim = buildInvocation('C:\\npm\\claude.cmd', AI_TOOL_SPECS.claude.args('', 'opus[1m]'), 'win32', { ComSpec: 'cmd.exe' })
+    expect(shim.args.at(-1)).toBe('""C:\\npm\\claude.cmd" -p --output-format text --tools "" --no-session-persistence --disable-slash-commands --model opus[1m]"')
+  })
+
   it('never puts a prompt in argv', () => {
     for (const spec of Object.values(AI_TOOL_SPECS)) {
       for (const a of spec.args('/tmp/out.txt')) expect(a.length).toBeLessThan(40)

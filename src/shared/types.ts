@@ -201,6 +201,8 @@ export interface Settings {
   worktreeForceRemove: boolean
   /** CLI used by "Generate commit message"; 'auto' = first installed tool in AI_TOOLS order. */
   aiCommitTool: AiTool | 'auto'
+  /** Per-tool model passed as `--model`; missing or '' = the CLI's own default. See isValidAiModel. */
+  aiModels: Partial<Record<AiTool, string>>
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -221,7 +223,8 @@ export const DEFAULT_SETTINGS: Settings = {
   checkForUpdates: true,
   mergeTool: '',
   worktreeForceRemove: false,
-  aiCommitTool: 'auto'
+  aiCommitTool: 'auto',
+  aiModels: {}
 }
 
 // ---------------------------------------------------------------------------

@@ -18,7 +18,7 @@ export function registerAiHandlers(ctx: MainContext): void {
     const id = assert.nonEmptyString(opId, 'opId')
     const amend = assert.boolean((o as { amend?: unknown } | null)?.amend, 'amend')
 
-    const setting = ctx.settings().aiCommitTool
+    const { aiCommitTool: setting, aiModels } = ctx.settings()
     const tools = detectTools()
     let tool: { id: AiTool; path: string }
     if (setting === 'auto' || !AI_TOOLS.includes(setting)) {
@@ -30,6 +30,7 @@ export function registerAiHandlers(ctx: MainContext): void {
       if (!chosen?.path) throw new AppError(`${chosen?.label ?? setting} is not installed or not on PATH. Install it or choose another tool in Settings.`, 'INVALID_ARGUMENT')
       tool = { id: chosen.id, path: chosen.path }
     }
+    const model = aiModels?.[tool.id]
     return ctx.ops.run(id, 'Generating commit message', true, async (op) => {
       // OperationManager drops progress calls < 50 ms apart; "Asking…" usually follows
       // "Reading…" faster than that and is the one that stays on screen, so defer it.
@@ -46,7 +47,7 @@ export function registerAiHandlers(ctx: MainContext): void {
         else emit()
       }
       try {
-        return await generateCommitMessage(runner, root, tool, {
+        return await generateCommitMessage(runner, root, { ...tool, model }, {
           amend,
           signal: op.signal,
           recentMessages: getPrefs(ctx, root).recentMessages,

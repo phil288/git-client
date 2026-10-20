@@ -3,6 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { delimiter, dirname, join } from 'node:path'
 import { AI_TOOL_LABEL, type AiCommitResult, type AiTool } from '@shared/types'
+import { isValidAiModel } from '@shared/aiTool'
 import { AppError } from '../git/errors'
 import { killProcessTree, type GitRunner } from '../git/runner'
 import { cleanCommitMessage } from './clean'
@@ -118,11 +119,14 @@ export function runTool(
   toolPath: string,
   root: string,
   prompt: string,
-  opts: { signal?: AbortSignal; timeoutMs?: number } = {}
+  opts: { signal?: AbortSignal; timeoutMs?: number; model?: string } = {}
 ): Promise<RunToolResult> {
   const spec = AI_TOOL_SPECS[tool]
   const label = AI_TOOL_LABEL[tool]
+  const model = opts.model?.trim() ?? ''
   if (opts.signal?.aborted) return Promise.reject(new AppError('Operation cancelled', 'CANCELLED'))
+  // The store schema checks this too, but a hand-edited state file is only validated on load.
+  if (!isValidAiModel(model)) return Promise.reject(new AppError(`Invalid model name for ${label}: "${model}"`, 'INVALID_ARGUMENT'))
   // Only tools that write their answer to a file (codex -o) get a temp dir.
   const tmp = spec.answerInFile ? mkdtempSync(join(tmpdir(), 'gitclient-ai-')) : null
   const outFile = tmp ? join(tmp, 'message.txt') : ''
@@ -134,7 +138,7 @@ export function runTool(
   return new Promise<RunToolResult>((resolve, reject) => {
     let child: ChildProcessWithoutNullStreams
     try {
-      const inv = buildInvocation(toolPath, spec.args(outFile))
+      const inv = buildInvocation(toolPath, spec.args(outFile, model))
       child = spawn(inv.command, inv.args, {
         cwd: root,
         env: { ...toolEnv(toolPath), ...inv.env },
@@ -188,7 +192,7 @@ export function runTool(
       let answer: string | null = null
       if (tmp && existsSync(outFile)) answer = readFileSync(outFile, 'utf8')
       cleanup()
-      const command = `${spec.binaries[0]} ${spec.args('<file>').join(' ')}`
+      const command = `${spec.binaries[0]} ${spec.args('<file>', model).join(' ')}`
 
       if (spawnError) {
         const missing = (spawnError as NodeJS.ErrnoException).code === 'ENOENT'
@@ -224,14 +228,14 @@ export function runTool(
 export async function generateCommitMessage(
   runner: GitRunner,
   root: string,
-  tool: { id: AiTool; path: string },
+  tool: { id: AiTool; path: string; model?: string },
   opts: GenerateOptions
 ): Promise<AiCommitResult> {
   opts.onProgress?.('Reading staged changes…')
   const ctx = await gatherStagedContext(runner, root, opts.amend, opts.signal)
   const prompt = buildPrompt({ ...ctx, amend: opts.amend, recentMessages: opts.recentMessages })
   opts.onProgress?.(`Asking ${AI_TOOL_LABEL[tool.id]}…`)
-  const res = await runTool(tool.id, tool.path, root, prompt, { signal: opts.signal, timeoutMs: opts.timeoutMs })
+  const res = await runTool(tool.id, tool.path, root, prompt, { signal: opts.signal, timeoutMs: opts.timeoutMs, model: tool.model })
   const message = cleanCommitMessage(res.answerFile?.trim() ? res.answerFile : res.stdout)
   if (message === '') throw new AppError(`${AI_TOOL_LABEL[tool.id]} returned an empty message`, 'UNKNOWN')
   return { message, tool: tool.id }

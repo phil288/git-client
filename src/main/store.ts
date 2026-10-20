@@ -4,7 +4,8 @@ import { app } from 'electron'
 import Store, { type Schema } from 'electron-store'
 import type Conf from 'conf'
 import { DEFAULT_WINDOW_STATE, type WindowState } from './windowState'
-import { DEFAULT_SETTINGS, type RecentRepo, type RepoGroup, type RepoPrefs, type SessionState, type Settings } from '@shared/types'
+import { AI_MODEL_PATTERN } from '@shared/aiTool'
+import { AI_TOOLS, DEFAULT_SETTINGS, type RecentRepo, type RepoGroup, type RepoPrefs, type SessionState, type Settings } from '@shared/types'
 
 export interface PersistedState {
   recents: RecentRepo[]
@@ -101,7 +102,12 @@ const schema: Schema<PersistedState> = {
       checkForUpdates: { type: 'boolean' },
       mergeTool: { type: 'string' },
       worktreeForceRemove: { type: 'boolean' },
-      aiCommitTool: { enum: ['auto', 'claude', 'codex', 'copilot', 'cursor', 'gemini'] }
+      aiCommitTool: { enum: ['auto', 'claude', 'codex', 'copilot', 'cursor', 'gemini'] },
+      aiModels: {
+        type: 'object',
+        additionalProperties: false,
+        properties: Object.fromEntries(AI_TOOLS.map((id) => [id, { type: 'string', pattern: AI_MODEL_PATTERN }]))
+      }
     }
   }
 }

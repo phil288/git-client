@@ -10,8 +10,9 @@ import { AppError } from '../git/errors'
  *   argv has size limits (32 KB on Windows) and is visible in process lists.
  * - Non-interactive, and read-only / no tools as far as the CLI allows: the
  *   prompt already contains everything the model needs.
- * - Flags are fixed constants. That is what makes the Windows `.cmd` shim
- *   path in {@link buildInvocation} safe.
+ * - Flags are fixed constants, plus an optional `--model <name>` restricted by
+ *   isValidAiModel. That is what makes the Windows `.cmd` shim path in
+ *   {@link buildInvocation} safe.
  *
  * Verification status (2026-10-06, see docs/tasks/2026-10-06-ai-commit-message.md):
  * - claude 2.1.291: verified live (stdin prompt, `--tools ""`, answer on stdout).
@@ -25,20 +26,26 @@ export interface AiToolSpec {
   id: AiTool
   /** Executable base names, in preference order (no extension). */
   binaries: readonly string[]
-  /** Fixed arguments. `outFile` is a temp file for tools that can write their final answer to one. */
-  args(outFile: string): string[]
+  /**
+   * Fixed arguments. `outFile` is a temp file for tools that can write their final answer to one.
+   * `model` ('' = CLI default) must already have passed isValidAiModel.
+   */
+  args(outFile: string, model?: string): string[]
   /** The final answer is read from `outFile` (falling back to stdout if the file is missing). */
   answerInFile?: boolean
   /** Shown when the CLI fails: usually it is not logged in. */
   loginHint: string
 }
 
+// Every supported CLI spells it `--model <name>` (codex and gemini also accept `-m`).
+const modelArgs = (model?: string): string[] => (model ? ['--model', model] : [])
+
 export const AI_TOOL_SPECS: Record<AiTool, AiToolSpec> = {
   claude: {
     id: 'claude',
     binaries: ['claude'],
     // --tools "" disables every built-in tool; no session file is written; no skills.
-    args: () => ['-p', '--output-format', 'text', '--tools', '', '--no-session-persistence', '--disable-slash-commands'],
+    args: (_, model) => ['-p', '--output-format', 'text', '--tools', '', '--no-session-persistence', '--disable-slash-commands', ...modelArgs(model)],
     loginHint: 'Is `claude` logged in? Run it once in a terminal.'
   },
   codex: {
@@ -46,7 +53,8 @@ export const AI_TOOL_SPECS: Record<AiTool, AiToolSpec> = {
     binaries: ['codex'],
     // `-` = read the prompt from stdin. Read-only sandbox, no session files, and the
     // last agent message goes to a file so progress noise on stdout/stderr is irrelevant.
-    args: (outFile) => ['exec', '--skip-git-repo-check', '--sandbox', 'read-only', '--ephemeral', '--color', 'never', '-o', outFile, '-'],
+    // `--model` goes before the trailing `-`, which must stay the last argument.
+    args: (outFile, model) => ['exec', '--skip-git-repo-check', '--sandbox', 'read-only', '--ephemeral', '--color', 'never', ...modelArgs(model), '-o', outFile, '-'],
     answerInFile: true,
     loginHint: 'Is `codex` logged in? Run `codex login` in a terminal.'
   },
@@ -55,7 +63,7 @@ export const AI_TOOL_SPECS: Record<AiTool, AiToolSpec> = {
     binaries: ['copilot'],
     // UNVERIFIED (docs): piped stdin is the prompt and runs non-interactively; it is
     // ignored when -p is also given, so no -p. -s prints only the agent's answer.
-    args: () => ['-s', '--deny-tool', 'shell', '--deny-tool', 'write'],
+    args: (_, model) => ['-s', '--deny-tool', 'shell', '--deny-tool', 'write', ...modelArgs(model)],
     loginHint: 'Is `copilot` logged in? Run it once in a terminal and use /login.'
   },
   cursor: {
@@ -63,7 +71,7 @@ export const AI_TOOL_SPECS: Record<AiTool, AiToolSpec> = {
     binaries: ['agent', 'cursor-agent'],
     // --mode ask = read-only Q&A. --trust is required in print mode, otherwise it exits
     // with "Workspace Trust Required"; harmless here because ask mode cannot edit or run.
-    args: () => ['-p', '--output-format', 'text', '--mode', 'ask', '--trust'],
+    args: (_, model) => ['-p', '--output-format', 'text', '--mode', 'ask', '--trust', ...modelArgs(model)],
     loginHint: 'Is Cursor Agent logged in? Run `agent login` in a terminal.'
   },
   gemini: {
@@ -71,7 +79,7 @@ export const AI_TOOL_SPECS: Record<AiTool, AiToolSpec> = {
     binaries: ['gemini'],
     // UNVERIFIED (docs): a non-TTY stdin triggers headless mode with stdin as the prompt.
     // In headless mode, tools that need approval are not run.
-    args: () => ['--output-format', 'text'],
+    args: (_, model) => ['--output-format', 'text', ...modelArgs(model)],
     loginHint: 'Is `gemini` logged in? Run it once in a terminal.'
   }
 }
@@ -103,7 +111,8 @@ const SHIM_RE = /\.(cmd|bat)$/i
  * - Windows `.cmd`/`.bat` npm shims: spawn() refuses them without a shell (EINVAL
  *   since the 2024 BatBadBut fix), so we run `cmd.exe /d /s /c ""<path>" <flags>"`.
  *   This is safe ONLY because nothing user- or model-controlled reaches this
- *   command line: the prompt goes through stdin, flags are constants, and the
+ *   command line: the prompt goes through stdin, flags are constants (the model
+ *   name is restricted to a safe character set by isValidAiModel), and the
  *   path and temp file are quoted and rejected if they contain characters cmd
  *   would still interpret inside quotes (`"`, `%`, `!`, newlines).
  * - Everything else is spawned directly.

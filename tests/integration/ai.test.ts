@@ -142,6 +142,21 @@ describe('generateCommitMessage with a fake CLI', () => {
     expect(err.extra.exitCode).toBe(3)
   })
 
+  it('passes the configured model as --model', async () => {
+    const r = repoWithStagedChange('model')
+    const cli = fakeCli('cursor-model', "process.stdout.write('Bump a\\n')")
+    await generateCommitMessage(runner, r, { id: 'cursor', path: cli, model: ' sonnet-4.5 ' }, { amend: false })
+    const argv = JSON.parse(readFileSync(`${cli}.argv`, 'utf8')) as string[]
+    expect(argv).toEqual(['-p', '--output-format', 'text', '--mode', 'ask', '--trust', '--model', 'sonnet-4.5'])
+  })
+
+  it('refuses an unsafe model name without starting the CLI', async () => {
+    const r = repoWithStagedChange('bad-model')
+    const cli = fakeCli('claude-bad-model', "process.stdout.write('never\\n')")
+    await expectAppError(generateCommitMessage(runner, r, { id: 'claude', path: cli, model: '--tools x' }, { amend: false }), 'INVALID_ARGUMENT', /Invalid model name/)
+    expect(existsSync(`${cli}.argv`)).toBe(false)
+  })
+
   it('treats empty output as an error', async () => {
     const r = repoWithStagedChange('empty')
     const cli = fakeCli('claude-empty', "process.stdout.write('  \\n\\n')")

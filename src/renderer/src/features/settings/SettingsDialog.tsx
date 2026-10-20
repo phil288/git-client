@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { AI_TOOLS, AI_TOOL_LABEL, type Settings } from '@shared/types'
+import { isValidAiModel, resolveAiTool } from '@shared/aiTool'
+import { AI_TOOLS, AI_TOOL_LABEL, type AiTool, type Settings } from '@shared/types'
 import { api } from '@/lib/api'
 import { notifyError, run } from '@/lib/notify'
 import { useAppStore } from '@/stores/app'
@@ -34,6 +36,28 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 const select = 'h-7 rounded-md border border-border-strong bg-bg px-2 text-[13px]'
 
+/** Model for one CLI (keyed by tool, so switching tools resets the draft). Saved only while valid, so typing never stores (or toasts) a half-typed bad name. */
+function AiModelInput({ value, onSave }: { value: string; onSave: (model: string) => void }) {
+  const [draft, setDraft] = useState(value)
+  const valid = isValidAiModel(draft.trim())
+  return (
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <Input
+        value={draft}
+        placeholder="CLI default"
+        aria-invalid={!valid}
+        className={valid ? undefined : 'border-danger'}
+        onChange={(e) => {
+          setDraft(e.target.value)
+          if (isValidAiModel(e.target.value.trim())) onSave(e.target.value.trim())
+        }}
+        data-testid="ai-model-input"
+      />
+      {!valid && <div className="text-xs text-danger">Letters, digits and . _ : / [ ] - only; must start with a letter or digit</div>}
+    </div>
+  )
+}
+
 /** File → Settings (Ctrl+,). Every change is saved immediately. */
 export function SettingsDialog() {
   const s = useAppStore((st) => st.settings)
@@ -48,6 +72,8 @@ export function SettingsDialog() {
 
   const aiTools = useQuery({ queryKey: ['ai-tools'], queryFn: () => api.ai.tools(), staleTime: 0, refetchOnMount: 'always' })
   const aiPath = s.aiCommitTool === 'auto' ? aiTools.data?.find((t) => t.path)?.path : aiTools.data?.find((t) => t.id === s.aiCommitTool)?.path
+  // The model field edits the tool that would actually run (auto resolves to the first installed one).
+  const aiModelTool: AiTool | null = s.aiCommitTool === 'auto' ? (aiTools.data ? (resolveAiTool('auto', aiTools.data)?.id ?? null) : null) : s.aiCommitTool
 
   const aiHelp = 'Prompt is sent to the CLI on stdin; the CLI runs in read-only mode in the repository folder.'
 
@@ -158,6 +184,15 @@ export function SettingsDialog() {
               Refresh
             </Button>
           </Row>
+          {aiModelTool && (
+            <Row label={`${AI_TOOL_LABEL[aiModelTool]} model`} help="Passed as --model; empty: the CLI's default. Remembered per tool.">
+              <AiModelInput
+                key={aiModelTool}
+                value={s.aiModels[aiModelTool] ?? ''}
+                onSave={(model) => set('aiModels', { ...s.aiModels, [aiModelTool]: model })}
+              />
+            </Row>
+          )}
           <Row label="Editor command" help="Used by “Open in Editor”; the path is appended">
             <Input value={s.editorCommand} onChange={(e) => set('editorCommand', e.target.value)} placeholder="code" />
           </Row>

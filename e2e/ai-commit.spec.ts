@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { _electron as electron, expect, test } from '@playwright/test'
@@ -19,7 +19,8 @@ test.beforeAll(() => {
   fakeCli = join(work, 'fake-claude.cjs')
   writeFileSync(
     fakeCli,
-    `if (process.env.FAKE_CLI_HANG) { setInterval(() => {}, 1000) } else { process.stdin.resume(); process.stdin.on('end', () => process.stdout.write(${JSON.stringify(GENERATED + '\n')})); process.stdin.on('error', () => {}) }\n`
+    `if (process.env.FAKE_CLI_ARGV) require('node:fs').writeFileSync(process.env.FAKE_CLI_ARGV, JSON.stringify(process.argv.slice(2)))
+if (process.env.FAKE_CLI_HANG) { setInterval(() => {}, 1000) } else { process.stdin.resume(); process.stdin.on('end', () => process.stdout.write(${JSON.stringify(GENERATED + '\n')})); process.stdin.on('error', () => {}) }\n`
   )
 })
 test.afterAll(() => rmSync(work, { recursive: true, force: true }))
@@ -79,5 +80,31 @@ test('clicking Generate again cancels without an error toast', async () => {
   await expect(generate).toHaveText(/Generate$/)
   await expect(page.getByTestId('commit-message')).toHaveValue('')
   await expect(page.getByText('Could not generate')).toHaveCount(0)
+  await app.close()
+})
+
+test('the model set in Settings is passed to the CLI as --model', async () => {
+  const argvFile = join(work, 'model-argv.json')
+  const { app, page } = await launch('model', { FAKE_CLI_ARGV: argvFile })
+  // Native menu accelerators do not see Playwright key presses: click the menu item instead.
+  await app.evaluate(({ Menu }) => {
+    const find = (items: Electron.MenuItem[]): Electron.MenuItem | undefined =>
+      items.map((i) => (i.label === 'Settings…' ? i : i.submenu ? find(i.submenu.items) : undefined)).find(Boolean)
+    find(Menu.getApplicationMenu()!.items)!.click()
+  })
+  const settings = page.getByTestId('settings-dialog')
+  await settings.getByTestId('ai-tool-select').selectOption('claude')
+  const model = settings.getByTestId('ai-model-input')
+  await model.fill('bad model')
+  await expect(model).toHaveAttribute('aria-invalid', 'true')
+  await model.fill('opus[1m]')
+  await expect(model).toHaveAttribute('aria-invalid', 'false')
+  await page.keyboard.press('Escape')
+  await expect(settings).toHaveCount(0)
+
+  await page.getByTestId('ai-generate').click()
+  await expect(page.getByTestId('commit-message')).toHaveValue(GENERATED)
+  const argv = JSON.parse(readFileSync(argvFile, 'utf8')) as string[]
+  expect(argv.slice(-2)).toEqual(['--model', 'opus[1m]'])
   await app.close()
 })
