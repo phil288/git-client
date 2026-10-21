@@ -1,7 +1,9 @@
-import { ArrowDownToLine, ArrowUpFromLine, ChevronDown, GitMerge, RefreshCw } from 'lucide-react'
+import { ArrowDownToLine, ArrowUpFromLine, ChevronDown, GitMerge, RefreshCw, Terminal } from 'lucide-react'
 import type { Ref } from '@shared/types'
 import { compareVersionNames } from '@shared/versions'
+import { api } from '@/lib/api'
 import { fetchFlow, pullFlow } from '@/lib/gitOps'
+import { run } from '@/lib/notify'
 import { queryClient } from '@/lib/queryClient'
 import { undoLastFlow } from '@/lib/rewriteFlows'
 import { openModal } from '@/stores/modals'
@@ -33,6 +35,9 @@ export function RepoToolbar({ root }: { root: string }) {
       </button>
       <button className={btn} title="Push…" onClick={() => openModal({ kind: 'push', root })} data-testid="toolbar-push">
         <ArrowUpFromLine className="size-3.5" /> Push
+      </button>
+      <button className={btn} title="Open a terminal in the repository (Alt+F12, Settings → Terminal command)" onClick={() => run(() => api.shell.openInTerminal(root))} data-testid="toolbar-terminal">
+        <Terminal className="size-3.5" /> Terminal
       </button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

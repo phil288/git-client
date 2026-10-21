@@ -14,6 +14,7 @@ const GROUPS: { title: string; items: [string, string][] }[] = [
       ['Ctrl+W', 'Close tab'],
       ['Ctrl+K', 'Commit view'],
       ['Alt+9', 'Git Console'],
+      ['Alt+F12', 'Open terminal in the repository'],
       ['Ctrl+,', 'Settings']
     ]
   },

@@ -3,7 +3,7 @@ import { Toaster } from 'sonner'
 import { FolderInput } from 'lucide-react'
 import type { MenuCommand, WorktreeEntry } from '@shared/types'
 import { api } from '@/lib/api'
-import { notifyError } from '@/lib/notify'
+import { notifyError, run } from '@/lib/notify'
 import { isMac } from '@/lib/utils'
 import { shortcutFor } from '@shared/shortcuts'
 import { queryClient } from '@/lib/queryClient'
@@ -85,6 +85,11 @@ function handleMenuCommand(cmd: MenuCommand): void {
     case 'toggle-console':
       void app.updateSettings({ showConsole: !app.settings.showConsole })
       break
+    case 'open-terminal': {
+      const path = selectActiveTabRef(tabs)?.path
+      if (path) run(() => api.shell.openInTerminal(path))
+      break
+    }
   }
 }
 

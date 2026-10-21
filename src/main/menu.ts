@@ -46,6 +46,7 @@ export function buildMenu(deps: MenuDeps): void {
         { label: 'Git Log', click: cmd('show-log') },
         { label: 'Commit', accelerator: 'CmdOrCtrl+K', click: cmd('show-commit') },
         { label: 'Git Console', accelerator: 'Alt+9', click: cmd('toggle-console') },
+        { label: 'Open Terminal in Repository', accelerator: 'Alt+F12', click: cmd('open-terminal') },
         { type: 'separator' },
         { role: 'reload', visible: !app.isPackaged },
         { role: 'toggleDevTools' },

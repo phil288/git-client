@@ -328,6 +328,7 @@ export type MenuCommand =
   | 'prev-tab'
   | 'quick-switcher'
   | 'toggle-console'
+  | 'open-terminal'
   | 'show-commit'
   | 'show-log'
   | 'settings'

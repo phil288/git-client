@@ -17,6 +17,7 @@ describe('shortcutFor (Linux/Windows)', () => {
     expect(s(key('Tab', { ctrlKey: true, shiftKey: true }))).toBe('prev-tab')
     expect(s(key('3', { ctrlKey: true }))).toEqual({ type: 'goto-tab', index: 2 })
     expect(s(key('9', { altKey: true }, 'Digit9'))).toBe('toggle-console')
+    expect(s(key('F12', { altKey: true }, 'F12'))).toBe('open-terminal')
   })
 
   it('ignores plain typing and unrelated combos', () => {

@@ -22,6 +22,7 @@ export function shortcutFor(e: KeyLike, isMac: boolean): MenuCommand | null {
   const key = e.key.length === 1 ? e.key.toLowerCase() : e.key
 
   if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && e.code === 'Digit9') return 'toggle-console'
+  if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && e.key === 'F12') return 'open-terminal'
   // Ctrl+Tab cycles tabs on every platform (like browsers), even on macOS.
   if (e.ctrlKey && key === 'Tab') return e.shiftKey ? 'prev-tab' : 'next-tab'
   if (!primary || e.altKey) return null
