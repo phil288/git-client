@@ -84,6 +84,12 @@ The request was to merge branches, not just worktrees, from the branch right-cli
 ## Corrections
 
 - The plan assumed branch merging did not exist. It did ("Merge ‘X’ into ‘cur’…" in the Branches panel menu), but only into the current branch and without preflight. The work generalised it rather than adding a second one.
+- `e2e/branch-merge.spec.ts` passed locally but failed on CI (two tests timing out waiting for a
+  2-parent commit): the fixture set the git identity only via `-c` on its own commands, so the
+  app's `git merge` had no identity on a runner without global git config. Fixed by setting a
+  repo-local `user.name`/`user.email` like the other specs. Reproduce locally with
+  `GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 E2E_NO_SANDBOX=1 npx playwright test e2e/branch-merge.spec.ts`
+  (2 failed before, 4 passed after).
 
 ## Deliberately not done
 

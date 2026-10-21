@@ -26,6 +26,9 @@ function setup(name: string): string {
   const repo = join(work, name)
   mkdirSync(repo)
   git(repo, 'init', '-q', '-b', 'main')
+  // The app's own merge commits need an identity; CI has no global one.
+  git(repo, 'config', 'user.name', 'E2E')
+  git(repo, 'config', 'user.email', 'e2e@example.com')
   commit(repo, 'a.txt', 'a\n', 'init')
   git(repo, 'checkout', '-q', '-b', 'feature')
   commit(repo, 'f1.txt', '1\n', 'feature one')
