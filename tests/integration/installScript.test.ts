@@ -217,6 +217,34 @@ describe.runIf(run)('install.sh from a repository clone (local build)', () => {
     expect(install(['--remote', '--rebuild']).code).toBe(1)
   })
 
+  it('reinstalls a local .deb even though its version did not change', () => {
+    // Fake sudo/apt-get/dpkg: apt-get logs its arguments instead of installing.
+    const debBin = join(root, 'debbin')
+    const aptLog = join(root, 'apt.log')
+    mkdirSync(debBin, { recursive: true })
+    const stubs: Record<string, string> = {
+      sudo: '#!/bin/sh\nexec "$@"\n',
+      'apt-get': `#!/bin/sh\necho "$*" >> "${aptLog}"\n`,
+      dpkg: '#!/bin/sh\n',
+      'dpkg-query': '#!/bin/sh\necho 0.4.2\n'
+    }
+    for (const [name, body] of Object.entries(stubs)) {
+      writeFileSync(join(debBin, name), body)
+      chmodSync(join(debBin, name), 0o755)
+    }
+    const deb = join(checkout, 'dist', 'gitclient-linux-x64.deb')
+    writeFileSync(deb, 'deb')
+    age(join(checkout, 'src', 'index.ts'), 3600)
+    const r = spawnSync('bash', [join(checkout, 'install.sh')], {
+      encoding: 'utf8',
+      env: { PATH: [debBin, fakeBin, '/usr/bin', '/bin'].join(':'), HOME: home, NO_COLOR: '1' }
+    })
+    expect(r.status, r.stdout + r.stderr).toBe(0)
+    const apt = readFileSync(aptLog, 'utf8')
+    expect(apt).toContain('install -y --reinstall')
+    expect(apt).toContain('gitclient-linux-x64.deb')
+  })
+
   it('explains what to do when there is no package and no npm', () => {
     const hasSystemNpm = spawnSync('bash', ['-c', 'PATH=/usr/bin:/bin command -v npm']).status === 0
     if (hasSystemNpm) return

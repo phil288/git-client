@@ -48,3 +48,4 @@ Decision records per task (not a changelog). Copy [`_TEMPLATE.md`](_TEMPLATE.md)
 | 2026-10-20 | [Per-tool model setting for AI commit messages](2026-10-20-ai-model-per-tool.md) | done |
 | 2026-10-21 | [Merge any branch into any branch, from more places](2026-10-21-branch-merge-any.md) | done |
 | 2026-10-21 | [Open a terminal in the current repository](2026-10-21-open-terminal-in-repo.md) | done |
+| 2026-10-21 | [install.sh reinstalls local builds of the same version](2026-10-21-install-local-reinstall.md) | done |

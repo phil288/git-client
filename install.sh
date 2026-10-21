@@ -375,6 +375,9 @@ USAGE
     fi
     local apt_args=(install -y)
     if [ "$quiet" = 1 ]; then apt_args+=(-qq); fi
+    # A local build keeps package.json's version, so apt would see "already the
+    # newest version" and silently keep the old install.
+    if [ "$source" = local ]; then apt_args+=(--reinstall); fi
     # DEBIAN_FRONTEND via env(1) so it survives sudo.
     run_root env DEBIAN_FRONTEND=noninteractive apt-get "${apt_args[@]}" "$tmp/$asset" >&2 ||
       die "apt-get failed to install $asset."
