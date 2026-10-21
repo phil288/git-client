@@ -247,8 +247,8 @@ export async function undoCommitFlow(root: string): Promise<void> {
   }
 }
 
-export function checkoutRevisionFlow(root: string, c: Commit): Promise<void> {
-  return checkoutFlow(root, { kind: 'commit', name: c.hash, label: `${c.hash.slice(0, 8)} “${c.subject}”` })
+export async function checkoutRevisionFlow(root: string, c: Commit): Promise<void> {
+  await checkoutFlow(root, { kind: 'commit', name: c.hash, label: `${c.hash.slice(0, 8)} “${c.subject}”` })
 }
 
 export function interactiveRebaseFlow(root: string, from: Commit): void {

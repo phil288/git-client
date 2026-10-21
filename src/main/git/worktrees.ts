@@ -1,7 +1,8 @@
 import { basename, dirname, join } from 'node:path'
 import { existsSync } from 'node:fs'
-import type { MergeMode, PendingMerge, WorktreeEntry, WorktreeForce, WorktreeMergeResult } from '@shared/types'
+import type { MergeIntoResult, MergeMode, MergePlan, PendingMerge, WorktreeEntry, WorktreeForce, WorktreeMergeResult } from '@shared/types'
 import { normalizeRepoPath, samePath } from '../paths'
+import { createBackup } from './backup'
 import { checkRefFormat, merge } from './branches'
 import { AppError } from './errors'
 import { operationState } from './sequencer'
@@ -164,48 +165,83 @@ export async function assertNotBeingMerged(runner: GitRunner, root: string, bran
   )
 }
 
+/** Short display name of a revision: `refs/heads/x` → `x`, `refs/remotes/o/x` → `o/x`, `refs/tags/v1` → `v1`. */
+export function shortRef(rev: string): string {
+  return rev.replace(/^refs\/(heads|remotes|tags)\//, '')
+}
+
+const plural = (n: number) => `${n} commit${n === 1 ? '' : 's'}`
+
+/** Where and how merging `source` into local branch `target` would run (dialog preflight, flow dispatch). */
+export async function mergePlan(runner: GitRunner, root: string, source: string, target: string): Promise<MergePlan> {
+  const s = assertArg(source, 'source')
+  const t = assertArg(target, 'target branch')
+  const tSha = (await runner.run(['rev-parse', '--verify', '--end-of-options', `refs/heads/${t}^{commit}`], { cwd: root })).stdout.trim()
+  const sSha = (await runner.run(['rev-parse', '--verify', '--end-of-options', `${s}^{commit}`], { cwd: root })).stdout.trim()
+  const ahead = await commitsToMergeRev(runner, root, s, t)
+  const host = (await listWorktrees(runner, root)).find((w) => w.branch === t && !w.prunable) ?? null
+  const ff = await runner.run(['merge-base', '--is-ancestor', tSha, sSha], { cwd: root, okExitCodes: [0, 1] })
+  return { ahead, host: host?.path ?? null, isCurrent: !!host && samePath(host.path, root), canFastForward: ff.exitCode === 0, sourceSha: sSha, targetSha: tSha }
+}
+
 /**
- * Merges `source` into `target`. A merge needs a working tree, so it runs in
- * the worktree where `target` is checked out. When `target` is not checked out
- * anywhere, only a fast-forward is possible (done by moving the ref).
+ * Merges any revision (branch, remote branch, tag, commit) into local branch
+ * `target`. A merge needs a working tree, so it runs in the worktree where
+ * `target` is checked out (the current one included). When `target` is checked
+ * out nowhere, only a fast-forward is possible (done by moving the ref); other
+ * cases throw NEEDS_CHECKOUT so the renderer can check `target` out first.
+ */
+export async function mergeRefInto(runner: GitRunner, root: string, source: string, target: string, mode: MergeMode): Promise<MergeIntoResult> {
+  const s = assertArg(source, 'source')
+  const t = assertArg(target, 'target branch')
+  const sName = shortRef(s)
+  if (s === t || s === `refs/heads/${t}`) throw new AppError('Source and target are the same branch.', 'INVALID_ARGUMENT')
+  const p = await mergePlan(runner, root, s, t)
+  if (p.ahead === 0) {
+    // git would answer "Already up to date": say so instead of reporting a merge.
+    return { outcome: { status: 'ok', message: `Nothing to merge: every commit of ${sName} is already in ${t}.` }, mergedIn: null, merged: 0 }
+  }
+
+  if (p.host) {
+    // Never stack a merge on an unfinished operation: git's refusal would look like fresh conflicts.
+    const st = await operationState(runner, p.host)
+    if (st.operation || st.conflicted.length > 0) {
+      throw new AppError(`${st.title || 'An operation with conflicts'} is still in progress in ${p.host}. Resolve and commit it, or abort it, first.`, 'DIRTY')
+    }
+    const outcome = await merge(runner, p.host, s, mode)
+    const message =
+      mode === 'squash' ? `Squashed ${plural(p.ahead)} of ${sName} into ${t}; commit the staged result` : `Merged ${plural(p.ahead)} of ${sName} into ${t}`
+    return { outcome: outcome.status === 'ok' ? { ...outcome, message } : outcome, mergedIn: p.host, merged: p.ahead }
+  }
+
+  if (!p.canFastForward || mode === 'no-ff' || mode === 'squash') {
+    const why = mode === 'no-ff' ? 'a merge commit' : mode === 'squash' ? 'a squash merge' : 'a fast-forward is not possible and a merge'
+    throw new AppError(`“${t}” is not checked out in any worktree and ${why} needs a working tree. Check out “${t}” first.`, 'NEEDS_CHECKOUT')
+  }
+  await createBackup(runner, root, 'merge', t)
+  await runner.run(['update-ref', '-m', `merge ${sName}: Fast-forward`, `refs/heads/${t}`, p.sourceSha, p.targetSha], { cwd: root })
+  return { outcome: { status: 'ok', message: `Fast-forwarded ${t} to ${sName} (${plural(p.ahead)})` }, mergedIn: null, merged: p.ahead }
+}
+
+/**
+ * Merges local branch `source` into `target` (worktree merge): mergeRefInto,
+ * except squash is refused — its staged result would sit in another worktree.
  */
 export async function mergeInto(runner: GitRunner, root: string, source: string, target: string, mode: MergeMode): Promise<WorktreeMergeResult> {
   const s = assertArg(source, 'source branch')
   const t = assertArg(target, 'target branch')
   if (s === t) throw new AppError('Source and target are the same branch.', 'INVALID_ARGUMENT')
   if (mode === 'squash') throw new AppError('Squash merges are not supported here; use Merge from the target worktree.', 'INVALID_ARGUMENT')
-  const tSha = (await runner.run(['rev-parse', '--verify', `refs/heads/${t}^{commit}`], { cwd: root })).stdout.trim()
-  const sSha = (await runner.run(['rev-parse', '--verify', `refs/heads/${s}^{commit}`], { cwd: root })).stdout.trim()
-  const ahead = await commitsToMerge(runner, root, s, t)
-  if (ahead === 0) {
-    // git would answer "Already up to date": say so instead of reporting a merge.
-    return { outcome: { status: 'ok', message: `Nothing to merge: every commit of ${s} is already in ${t}.` }, mergedIn: null, merged: 0 }
-  }
-
-  const host = (await listWorktrees(runner, root)).find((w) => w.branch === t && !w.prunable)
-  if (host) {
-    // Never stack a merge on an unfinished operation: git's refusal would look like fresh conflicts.
-    const st = await operationState(runner, host.path)
-    if (st.operation || st.conflicted.length > 0) {
-      throw new AppError(`${st.title || 'An operation with conflicts'} is still in progress in ${host.path}. Resolve and commit it, or abort it, first.`, 'DIRTY')
-    }
-    const outcome = await merge(runner, host.path, s, mode)
-    return { outcome: outcome.status === 'ok' ? { ...outcome, message: `Merged ${ahead} commit${ahead === 1 ? '' : 's'} of ${s} into ${t}` } : outcome, mergedIn: host.path, merged: ahead }
-  }
-
-  const ff = await runner.run(['merge-base', '--is-ancestor', tSha, sSha], { cwd: root, okExitCodes: [0, 1] })
-  if (ff.exitCode !== 0 || mode === 'no-ff') {
-    throw new AppError(
-      `“${t}” is not checked out in any worktree and ${mode === 'no-ff' ? 'a merge commit' : 'a fast-forward is not possible'} needs a working tree. Check out “${t}” in a worktree first.`,
-      'INVALID_ARGUMENT'
-    )
-  }
-  await runner.run(['update-ref', '-m', `merge ${s}: Fast-forward`, `refs/heads/${t}`, sSha, tSha], { cwd: root })
-  return { outcome: { status: 'ok', message: `Fast-forwarded ${t} to ${s} (${ahead} commit${ahead === 1 ? '' : 's'})` }, mergedIn: null, merged: ahead }
+  return mergeRefInto(runner, root, `refs/heads/${s}`, t, mode)
 }
 
-/** Number of commits on `source` that `target` does not have yet (what a merge would bring in). */
+/** Number of commits on local branch `source` that `target` does not have yet (what a merge would bring in). */
 export async function commitsToMerge(runner: GitRunner, root: string, source: string, target: string): Promise<number> {
-  const r = await runner.run(['rev-list', '--count', `refs/heads/${assertArg(target, 'target')}..refs/heads/${assertArg(source, 'source')}`, '--'], { cwd: root })
+  return commitsToMergeRev(runner, root, `refs/heads/${assertArg(source, 'source')}`, target)
+}
+
+/** Same, for any revision as source (remote branch, tag, commit). */
+export async function commitsToMergeRev(runner: GitRunner, root: string, source: string, target: string): Promise<number> {
+  const r = await runner.run(['rev-list', '--count', `refs/heads/${assertArg(target, 'target')}..${assertArg(source, 'source')}`, '--'], { cwd: root })
   return Number(r.stdout.trim()) || 0
 }

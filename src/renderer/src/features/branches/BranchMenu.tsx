@@ -37,15 +37,31 @@ export function BranchMenu({ root, r, currentBranch, favorite, onToggleFavorite 
       {!isCurrent && r.kind === 'local' && currentBranch && (
         <ContextMenuItem onSelect={() => void rebaseFlow(root, currentBranch, name)}>Checkout and Rebase onto ‘{cur}’</ContextMenuItem>
       )}
+      {isCurrent && (
+        <>
+          <ContextMenuSeparator />
+          <ContextMenuItem onSelect={() => openModal({ kind: 'merge', root, target: name })} data-testid="menu-merge-into-current">
+            Merge into ‘{name}’…
+          </ContextMenuItem>
+        </>
+      )}
       {!isCurrent && (
         <>
           <ContextMenuSeparator />
           <ContextMenuItem onSelect={() => void rebaseFlow(root, r.name, null)}>
             Rebase ‘{cur}’ onto ‘{name}’
           </ContextMenuItem>
-          <ContextMenuItem onSelect={() => openModal({ kind: 'merge', root, ref: r.name, label: name, current: currentBranch })}>
+          <ContextMenuItem onSelect={() => openModal({ kind: 'merge', root, source: r.name, sourceLabel: name })} data-testid="menu-merge">
             Merge ‘{name}’ into ‘{cur}’…
           </ContextMenuItem>
+          {r.kind === 'local' && currentBranch && (
+            <ContextMenuItem
+              onSelect={() => openModal({ kind: 'merge', root, source: `refs/heads/${currentBranch}`, sourceLabel: currentBranch, target: name })}
+              data-testid="menu-merge-current-into"
+            >
+              Merge ‘{cur}’ into ‘{name}’…
+            </ContextMenuItem>
+          )}
           <ContextMenuItem onSelect={() => openModal({ kind: 'compare', root, a: r.name, aLabel: name, b: 'HEAD', bLabel: cur })}>
             Compare with ‘{cur}’
           </ContextMenuItem>

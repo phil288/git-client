@@ -272,10 +272,17 @@ export async function runMergeTool(runner: GitRunner, root: string, path: string
 }
 
 /** Files that would conflict if `ref` were merged into HEAD (git ≥ 2.38, no working-tree change). */
-export async function previewMerge(runner: GitRunner, root: string, ref: string, gitVersion: [number, number, number]): Promise<MergePreview> {
+export async function previewMerge(
+  runner: GitRunner,
+  root: string,
+  ref: string,
+  gitVersion: [number, number, number],
+  into: string | null = null
+): Promise<MergePreview> {
   if (compareVersions(gitVersion, [2, 38, 0]) < 0) return { supported: false, conflicts: [], clean: false }
-  if (ref.startsWith('-')) throw new AppError('Invalid revision', 'INVALID_ARGUMENT')
-  const r = await runner.run(['merge-tree', '--write-tree', '--name-only', '--no-messages', '-z', 'HEAD', ref], { cwd: root, okExitCodes: [0, 1] })
+  if (ref.startsWith('-') || into?.startsWith('-')) throw new AppError('Invalid revision', 'INVALID_ARGUMENT')
+  const base = into ? `refs/heads/${into}` : 'HEAD'
+  const r = await runner.run(['merge-tree', '--write-tree', '--name-only', '--no-messages', '-z', base, ref], { cwd: root, okExitCodes: [0, 1] })
   const parts = r.stdout.split('\0').filter(Boolean)
   const conflicts = [...new Set(parts.slice(1))]
   return { supported: true, conflicts, clean: r.exitCode === 0 }

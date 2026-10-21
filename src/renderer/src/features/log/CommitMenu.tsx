@@ -1,4 +1,4 @@
-import type { Commit } from '@shared/types'
+import type { Commit, Ref } from '@shared/types'
 import { WORKTREE } from '@shared/types'
 import { api } from '@/lib/api'
 import { run } from '@/lib/notify'
@@ -14,13 +14,16 @@ import {
   undoCommitFlow
 } from '@/lib/rewriteFlows'
 import { openModal } from '@/stores/modals'
-import { ContextMenuItem, ContextMenuSeparator } from '@/components/ui/context-menu'
+import { ContextMenuItem, ContextMenuSeparator, ContextMenuSub, ContextMenuSubContent, ContextMenuSubTrigger } from '@/components/ui/context-menu'
 import type { DiffSide } from '../diff/LazyDiffViewer'
+import { LogRefMenu } from './LogRefMenu'
 
 interface Props {
   root: string
   /** Newest first. */
   selected: Commit[]
+  /** Refs pointing at the selected commit (single selection). */
+  refs?: Ref[]
   headSha: string | null
   currentBranch: string | null
   /** Current-branch commits in log order, for the Fixup/Squash target chooser. */
@@ -29,7 +32,7 @@ interface Props {
 }
 
 /** Right-click menu of the log (single or multi-select) */
-export function CommitMenu({ root, selected, headSha, currentBranch, branchCommits }: Props) {
+export function CommitMenu({ root, selected, refs = [], headSha, currentBranch, branchCommits }: Props) {
   const single = selected.length === 1 ? selected[0]! : null
   const onBranch = selected.every((c) => c.onCurrentBranch)
   const hasMerge = selected.some((c) => c.parents.length > 1)
@@ -57,6 +60,24 @@ export function CommitMenu({ root, selected, headSha, currentBranch, branchCommi
           </ContextMenuItem>
           {commitMenuExtras.newTag?.(root, single)}
           <ContextMenuItem onSelect={() => openModal({ kind: 'reset', root, commit: single, branch: currentBranch })}>Reset Current Branch to Here…</ContextMenuItem>
+          <ContextMenuItem
+            disabled={onBranch}
+            onSelect={() => openModal({ kind: 'merge', root, source: single.hash, sourceLabel: `${single.hash.slice(0, 8)} “${single.subject}”` })}
+            data-testid="commit-merge"
+          >
+            Merge into ‘{branch}’…
+          </ContextMenuItem>
+          {refs.length > 0 && <ContextMenuSeparator />}
+          {refs.map((r) => (
+            <ContextMenuSub key={r.name}>
+              <ContextMenuSubTrigger data-testid="commit-ref-submenu">
+                {r.kind === 'tag' ? 'Tag' : 'Branch'} ‘{r.short}’
+              </ContextMenuSubTrigger>
+              <ContextMenuSubContent className="min-w-64">
+                <LogRefMenu root={root} r={r} currentBranch={currentBranch} />
+              </ContextMenuSubContent>
+            </ContextMenuSub>
+          ))}
         </>
       )}
       <ContextMenuSeparator />

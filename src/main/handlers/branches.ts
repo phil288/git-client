@@ -2,7 +2,7 @@ import type { MergeMode, PullMode, PushOptions, RepoPrefs } from '@shared/types'
 import type { MainContext } from '../context'
 import * as br from '../git/branches'
 import { AppError } from '../git/errors'
-import { assertNotBeingMerged } from '../git/worktrees'
+import { assertNotBeingMerged, mergePlan, mergeRefInto } from '../git/worktrees'
 import { assert } from '../ipcRegistry'
 import { pathKey } from '../paths'
 
@@ -117,6 +117,23 @@ export function registerBranchHandlers(ctx: MainContext): void {
     if (!MERGE_MODES.includes(mode)) throw new AppError('Invalid merge mode', 'INVALID_ARGUMENT')
     return mutate(r, () => br.merge(runner, r, assert.nonEmptyString(ref, 'ref'), mode))
   })
+  handle('branch:mergeInto', async (_e, r0, source, target, mode) => {
+    const r = root(r0)
+    if (!MERGE_MODES.includes(mode)) throw new AppError('Invalid merge mode', 'INVALID_ARGUMENT')
+    let mergedIn: string | null = null
+    try {
+      const res = await mergeRefInto(runner, r, assert.nonEmptyString(source, 'source'), assert.nonEmptyString(target, 'target'), mode)
+      mergedIn = res.mergedIn
+      return res
+    } finally {
+      // The merge may run in another worktree (where the target is checked out).
+      ctx.notifyRepoChanged(r)
+      if (mergedIn) ctx.notifyRepoChanged(mergedIn)
+    }
+  })
+  handle('branch:mergePlan', (_e, r0, source, target) =>
+    mergePlan(runner, root(r0), assert.nonEmptyString(source, 'source'), assert.nonEmptyString(target, 'target'))
+  )
   handle('branch:rebase', (_e, r0, onto, b) => {
     const r = root(r0)
     return mutate(r, () => br.rebase(runner, r, assert.nonEmptyString(onto, 'onto'), assert.nullableString(b, 'branch') ?? undefined))

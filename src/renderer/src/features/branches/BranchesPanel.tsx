@@ -46,6 +46,19 @@ export function usePrefs(root: string) {
   return useQuery({ queryKey: ['prefs', root], queryFn: () => api.prefs.get(root), staleTime: Infinity })
 }
 
+/** Favorite refs (full names) of a repository and a persisted toggle. */
+export function useFavorites(root: string) {
+  const qc = useQueryClient()
+  const prefs = usePrefs(root)
+  const favorites = useMemo(() => new Set(prefs.data?.favorites ?? []), [prefs.data])
+  const toggle = (r: Ref) =>
+    run(async () => {
+      const next = favorites.has(r.name) ? [...favorites].filter((f) => f !== r.name) : [...favorites, r.name]
+      qc.setQueryData(['prefs', root], await api.prefs.update(root, { favorites: next }))
+    })
+  return { favorites, toggle }
+}
+
 interface Props {
   tab: TabRef
   refs: Ref[]
@@ -57,13 +70,11 @@ interface Props {
 /** Branches tree: favorites, recent, local, remotes, tags. */
 export function BranchesPanel({ tab, refs, currentBranch, query, setQuery }: Props) {
   const root = tab.path
-  const qc = useQueryClient()
   const [search, setSearch] = useState('')
   const [collapsedList, setCollapsed] = useTabUi<string[]>(tab.id, 'branchesCollapsed', ['tags'])
   const collapsed = useMemo(() => new Set(collapsedList), [collapsedList])
-  const prefs = usePrefs(root)
+  const { favorites, toggle: toggleFavorite } = useFavorites(root)
   const recent = useQuery({ queryKey: ['repo', root, 'recentBranches'], queryFn: () => api.branch.recent(root) })
-  const favorites = useMemo(() => new Set(prefs.data?.favorites ?? []), [prefs.data])
   const worktrees = useWorktrees(root)
   // Local branches checked out in another worktree (this tab's own branch is already shown in bold).
   const worktreeOf = useMemo(
@@ -117,11 +128,6 @@ export function BranchesPanel({ tab, refs, currentBranch, query, setQuery }: Pro
   }
 
   const toggle = (key: string) => setCollapsed(collapsed.has(key) ? collapsedList.filter((k) => k !== key) : [...collapsedList, key])
-  const toggleFavorite = (r: Ref) =>
-    run(async () => {
-      const next = favorites.has(r.name) ? [...favorites].filter((f) => f !== r.name) : [...favorites, r.name]
-      qc.setQueryData(['prefs', root], await api.prefs.update(root, { favorites: next }))
-    })
 
   const locals = refs.filter((r) => r.kind === 'local')
   const remotes = refs.filter((r) => r.kind === 'remote')

@@ -36,6 +36,8 @@ export type ErrorCode =
   | 'DIRTY'
   /** Worktree is locked (removal needs `-f -f`). */
   | 'LOCKED'
+  /** Merge target is not checked out anywhere and the merge needs a working tree. */
+  | 'NEEDS_CHECKOUT'
   | 'UNKNOWN'
 
 /** Envelope for every invoke() round-trip. The renderer unwraps it. */
@@ -660,12 +662,28 @@ export interface PendingMerge {
   branches: string[]
 }
 
-export interface WorktreeMergeResult {
+export interface MergeIntoResult {
   outcome: OpOutcome
   /** Worktree the merge ran in (where the target is checked out); null when fast-forwarded by ref update or nothing was merged. */
   mergedIn: string | null
   /** Commits of the source that were not in the target before the merge. 0 = nothing merged (uncommitted work is never merged). */
   merged: number
+}
+
+export type WorktreeMergeResult = MergeIntoResult
+
+/** Preflight of merging a revision into a local branch. */
+export interface MergePlan {
+  /** Commits the merge would bring in (0 = nothing to merge). */
+  ahead: number
+  /** Worktree where the target is checked out (the merge runs there); null = checked out nowhere. */
+  host: string | null
+  /** The target is checked out in the repository the request came from. */
+  isCurrent: boolean
+  /** The target is an ancestor of the source: it can be moved forward without a merge commit. */
+  canFastForward: boolean
+  sourceSha: string
+  targetSha: string
 }
 
 // ---------------------------------------------------------------------------

@@ -5,7 +5,8 @@ import type { Commit, Ref, Remote, UpdateInfo, WorktreeEntry } from '@shared/typ
 export type Modal =
   | { kind: 'newBranch'; root: string; start: string; startLabel: string }
   | { kind: 'renameBranch'; root: string; branch: Ref }
-  | { kind: 'merge'; root: string; ref: string; label: string; current: string | null }
+  /** No source: pick one in the dialog. No target: the current branch. */
+  | { kind: 'merge'; root: string; source?: string; sourceLabel?: string; target?: string }
   | { kind: 'compare'; root: string; a: string; aLabel: string; b: string; bLabel: string }
   | { kind: 'worktreeDiff'; root: string; rev: string; label: string }
   | { kind: 'upstream'; root: string; branch: string }

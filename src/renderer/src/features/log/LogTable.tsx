@@ -1,4 +1,4 @@
-import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from 'react'
+import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { GraphRow } from '@shared/graph'
 import type { Commit, Ref, Settings } from '@shared/types'
@@ -109,8 +109,8 @@ interface Props {
   showGraph: boolean
   selection: Selection
   onSelectionChange(sel: Selection): void
-  /** Context menu content for the current selection. */
-  renderMenu?: (selected: Commit[]) => React.ReactNode
+  /** Context menu content for the current selection; `ref` = the ref label that was right-clicked. */
+  renderMenu?: (selected: Commit[], ref: Ref | null) => React.ReactNode
   onActivate?: (commit: Commit) => void
   highlight?: (c: Commit) => boolean
 }
@@ -239,6 +239,7 @@ export const LogTable = forwardRef<LogTableHandle, Props>(function LogTable(
     }
   }
 
+  const [menuRef, setMenuRef] = useState<Ref | null>(null)
   const selectedCommits = () => selection.hashes.map((h) => commits[model.index.get(h) ?? -1]).filter((c): c is Commit => !!c)
 
   return (
@@ -259,7 +260,12 @@ export const LogTable = forwardRef<LogTableHandle, Props>(function LogTable(
             onContextMenu={(e) => {
               const row = (e.target as HTMLElement).closest('[data-hash]')
               const hash = row?.getAttribute('data-hash')
-              if (hash && !selected.has(hash)) onSelectionChange({ hashes: [hash], focus: hash, anchor: hash })
+              const refName = (e.target as HTMLElement).closest('[data-ref]')?.getAttribute('data-ref')
+              const ref = (hash && refName && refsByHash.get(hash)?.find((r) => r.name === refName)) || null
+              setMenuRef(ref)
+              if (hash && (ref ? selection.hashes.length !== 1 || selection.hashes[0] !== hash : !selected.has(hash))) {
+                onSelectionChange({ hashes: [hash], focus: hash, anchor: hash })
+              }
             }}
             className="relative min-h-0 flex-1 overflow-auto outline-none"
           >
@@ -292,7 +298,7 @@ export const LogTable = forwardRef<LogTableHandle, Props>(function LogTable(
             {model.loading && commits.length === 0 && <div className="p-6 text-center text-muted">Loading history…</div>}
           </div>
         </ContextMenuTrigger>
-        {renderMenu && selection.hashes.length > 0 && <ContextMenuContent className="min-w-60">{renderMenu(selectedCommits())}</ContextMenuContent>}
+        {renderMenu && selection.hashes.length > 0 && <ContextMenuContent className="min-w-60">{renderMenu(selectedCommits(), menuRef)}</ContextMenuContent>}
       </ContextMenu>
       <div className="flex h-5 shrink-0 items-center gap-2 border-t border-border-strong bg-panel px-2 text-[11px] text-muted">
         <span>

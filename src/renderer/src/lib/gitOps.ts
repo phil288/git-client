@@ -1,5 +1,5 @@
 import { toast } from 'sonner'
-import type { OpOutcome, PullMode, Ref } from '@shared/types'
+import type { MergeMode, OpOutcome, PullMode, Ref } from '@shared/types'
 import { useAppStore } from '@/stores/app'
 import { choose, confirm } from '@/stores/dialogs'
 import { useRepoEpoch } from '@/stores/repoEpoch'
@@ -77,8 +77,8 @@ export function refToTarget(r: Ref): CheckoutTarget {
   return { kind: 'tag', name: r.short }
 }
 
-/** Checkout flow: detached-HEAD warning, Smart / Force checkout on local changes. */
-export async function checkoutFlow(root: string, t: CheckoutTarget): Promise<void> {
+/** Checkout flow: detached-HEAD warning, Smart / Force checkout on local changes. Resolves true once checked out. */
+export async function checkoutFlow(root: string, t: CheckoutTarget): Promise<boolean> {
   const detached = t.kind === 'tag' || t.kind === 'commit'
   if (detached) {
     const ok = await confirm({
@@ -86,7 +86,7 @@ export async function checkoutFlow(root: string, t: CheckoutTarget): Promise<voi
       message: `Checking out ${t.label ?? t.name} puts the repository in “detached HEAD” state: new commits will not belong to any branch unless you create one.`,
       confirmLabel: 'Checkout'
     })
-    if (!ok) return
+    if (!ok) return false
   }
   const localName = t.kind === 'remote' ? t.name.slice(t.remote.length + 1) : t.name
   const plain = () =>
@@ -97,22 +97,30 @@ export async function checkoutFlow(root: string, t: CheckoutTarget): Promise<voi
     await plain()
     refreshRepo(root)
     toast.success(`Checked out ${t.kind === 'remote' ? localName : (t.label ?? t.name)}`)
+    return true
   } catch (err) {
-    if (!(err instanceof ApiError) || err.info.code !== 'LOCAL_CHANGES') return notifyError(err, 'Checkout failed')
+    if (!(err instanceof ApiError) || err.info.code !== 'LOCAL_CHANGES') {
+      notifyError(err, 'Checkout failed')
+      return false
+    }
     const choice = await askLocalChanges(t.label ?? t.name)
-    if (!choice) return
+    if (!choice) return false
     try {
       if (choice === 'force') {
         if (t.kind === 'remote') await api.branch.checkoutRemote(root, t.name, localName, { force: true })
         else await api.branch.checkout(root, t.name, { force: true, detach: detached })
         refreshRepo(root)
         toast.success(`Checked out ${localName} (local changes discarded)`)
+        return true
       } else {
         const out = t.kind === 'remote' ? await api.branch.checkoutRemote(root, t.name, localName, { smart: true }) : await api.branch.smartCheckout(root, t.name, { detach: detached })
         reportOutcome(root, out)
+        // Checked out even when re-applying the stash conflicted.
+        return true
       }
     } catch (e) {
       notifyError(e, 'Checkout failed')
+      return false
     }
   }
 }
@@ -187,11 +195,52 @@ export async function pullFlow(root: string, mode?: PullMode): Promise<void> {
   }
 }
 
-export async function mergeFlow(root: string, ref: string, mode: Parameters<typeof api.branch.merge>[2]): Promise<void> {
+/**
+ * Merges any revision into local branch `target` (null = detached HEAD). Runs
+ * where `target` is checked out; when it is checked out nowhere and cannot be
+ * fast-forwarded, offers to check it out here first.
+ */
+export async function mergeBranchFlow(root: string, source: string, sourceLabel: string, target: string | null, mode: MergeMode): Promise<void> {
   try {
-    reportOutcome(root, await api.branch.merge(root, ref, mode), { undoable: true })
+    if (target === null) {
+      // Detached HEAD: plain `git merge` into HEAD.
+      const out = await api.branch.merge(root, source, mode)
+      reportOutcome(root, out, { undoable: out.status === 'ok' && !out.message.startsWith('Nothing to merge') })
+      return
+    }
+    const plan = await api.branch.mergePlan(root, source, target)
+    let here = plan.isCurrent
+    if (plan.ahead > 0 && !plan.host && (!plan.canFastForward || mode === 'no-ff' || mode === 'squash')) {
+      const ok = await confirm({
+        title: `Check out ‘${target}’?`,
+        message: `‘${target}’ is not checked out anywhere and this merge needs a working tree. Check out ‘${target}’ here, then merge ‘${sourceLabel}’ into it?`,
+        confirmLabel: 'Checkout and Merge'
+      })
+      if (!ok || !(await checkoutFlow(root, { kind: 'local', name: target }))) return
+      here = true
+    }
+    const res = await api.branch.mergeInto(root, source, target, mode)
+    refreshRepo(root)
+    if (res.mergedIn) refreshRepo(res.mergedIn)
+    const where = res.mergedIn ?? root
+    if (res.outcome.status !== 'ok') {
+      toast.warning(
+        `Merging ${sourceLabel} into ${target} stopped with conflicts${here ? '' : ` in ${where}`}. ` +
+          `In the conflict tool, “Yours” is ${target} and “Theirs” is ${sourceLabel}.`,
+        { duration: 30_000, action: { label: 'Resolve…', onClick: () => outcomeActions.resolveConflicts?.(where) } }
+      )
+    } else if (res.merged === 0) {
+      // "Already up to date": nothing to undo, so no Undo (it would undo the previous operation).
+      toast.warning(res.outcome.message, { duration: 10_000 })
+    } else {
+      // Undo resets the current repository only: offer it when the merge ran here.
+      const undoable = here && res.mergedIn !== null
+      toast.success(res.outcome.message, {
+        action: undoable && outcomeActions.undo ? { label: 'Undo', onClick: () => outcomeActions.undo?.(root) } : undefined
+      })
+    }
   } catch (err) {
-    notifyError(err, 'Merge failed')
+    notifyError(err, `Could not merge ${sourceLabel}${target ? ` into ${target}` : ''}`)
   }
 }
 

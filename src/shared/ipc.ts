@@ -23,7 +23,9 @@ import type {
   RewritePlan,
   UpdateInfo,
   FileChange,
+  MergeIntoResult,
   MergeMode,
+  MergePlan,
   OpOutcome,
   PullMode,
   PushOptions,
@@ -158,6 +160,9 @@ export interface IpcInvokeMap {
   'branch:deleteRemoteMany': [[root: string, remote: string, branches: string[], opId: string], void]
   'branch:setUpstream': [[root: string, branch: string, upstream: string | null], void]
   'branch:merge': [[root: string, ref: string, mode: MergeMode], OpOutcome]
+  /** Merges any revision into local branch `target`, in the worktree where it is checked out (or by fast-forward). */
+  'branch:mergeInto': [[root: string, source: string, target: string, mode: MergeMode], MergeIntoResult]
+  'branch:mergePlan': [[root: string, source: string, target: string], MergePlan]
   'branch:rebase': [[root: string, onto: string, branch: string | null], OpOutcome]
   'branch:compare': [[root: string, a: string, b: string], CompareResult]
   'branch:recent': [[root: string], string[]]
@@ -262,7 +267,8 @@ export interface IpcInvokeMap {
   'conflicts:save': [[root: string, path: string, text: string, encoding: FileContent['encoding']], void]
   'conflicts:autoResolve': [[root: string, paths: string[] | null], { resolved: string[]; remaining: { path: string; conflicts: number }[] }]
   'conflicts:mergeTool': [[root: string, path: string], void]
-  'conflicts:preview': [[root: string, ref: string], MergePreview]
+  /** `into` (a local branch) previews a merge into that branch instead of HEAD. */
+  'conflicts:preview': [[root: string, ref: string, into?: string | null], MergePreview]
   'conflicts:getRerere': [[root: string], boolean]
   'conflicts:setRerere': [[root: string, enabled: boolean], void]
   'conflicts:configuredTool': [[root: string], string | null]
@@ -364,6 +370,8 @@ const invokeChannelRecord = {
   'branch:deleteRemoteMany': true,
   'branch:setUpstream': true,
   'branch:merge': true,
+  'branch:mergeInto': true,
+  'branch:mergePlan': true,
   'branch:rebase': true,
   'branch:compare': true,
   'branch:recent': true,

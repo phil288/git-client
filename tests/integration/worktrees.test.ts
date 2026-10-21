@@ -129,7 +129,7 @@ describe('worktrees', () => {
     const p = await wt.addWorktree(runner, r, join(root, 'ff-side'), 'side', null)
     commitFile(p, 's.txt', 's\n', 's')
     await wt.removeWorktree(runner, r, p, 0)
-    await expect(wt.mergeInto(runner, r, 'side', 'release', 'default')).rejects.toMatchObject({ code: 'INVALID_ARGUMENT' })
+    await expect(wt.mergeInto(runner, r, 'side', 'release', 'default')).rejects.toMatchObject({ code: 'NEEDS_CHECKOUT' })
   })
 
   it('a conflicted merge protects the source branch until it is committed or aborted', async () => {

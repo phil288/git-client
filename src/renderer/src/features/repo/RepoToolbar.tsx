@@ -1,4 +1,4 @@
-import { ArrowDownToLine, ArrowUpFromLine, ChevronDown, RefreshCw } from 'lucide-react'
+import { ArrowDownToLine, ArrowUpFromLine, ChevronDown, GitMerge, RefreshCw } from 'lucide-react'
 import type { Ref } from '@shared/types'
 import { compareVersionNames } from '@shared/versions'
 import { fetchFlow, pullFlow } from '@/lib/gitOps'
@@ -17,7 +17,7 @@ function openCompare(root: string): void {
   openModal({ kind: 'compare', root, a: 'HEAD', aLabel: 'HEAD', b: tag?.name ?? 'HEAD', bLabel: tag?.short ?? 'HEAD' })
 }
 
-/** Fetch / Pull / Push for the active repository (title-bar area, like the IDE toolbar). */
+/** Fetch / Pull / Merge / Push for the active repository (title-bar area, like the IDE toolbar). */
 export function RepoToolbar({ root }: { root: string }) {
   const btn = 'flex items-center gap-1 rounded px-2 text-xs text-muted hover:bg-hover hover:text-fg'
   return (
@@ -27,6 +27,9 @@ export function RepoToolbar({ root }: { root: string }) {
       </button>
       <button className={btn} title="Pull (Settings → default pull mode)" onClick={() => void pullFlow(root)} data-testid="toolbar-pull">
         <ArrowDownToLine className="size-3.5" /> Pull
+      </button>
+      <button className={btn} title="Merge a branch, tag or commit into a branch…" onClick={() => openModal({ kind: 'merge', root })} data-testid="toolbar-merge">
+        <GitMerge className="size-3.5" /> Merge
       </button>
       <button className={btn} title="Push…" onClick={() => openModal({ kind: 'push', root })} data-testid="toolbar-push">
         <ArrowUpFromLine className="size-3.5" /> Push

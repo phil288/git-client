@@ -53,7 +53,9 @@ export function registerConflictHandlers(ctx: MainContext, gitVersion: () => [nu
     const r = root(r0)
     return mutate(r, () => cf.runMergeTool(runner, r, assert.nonEmptyString(p, 'path'), ctx.settings().mergeTool))
   })
-  handle('conflicts:preview', (_e, r0, ref) => cf.previewMerge(runner, root(r0), assert.nonEmptyString(ref, 'ref'), gitVersion()))
+  handle('conflicts:preview', (_e, r0, ref, into) =>
+    cf.previewMerge(runner, root(r0), assert.nonEmptyString(ref, 'ref'), gitVersion(), assert.nullableString(into ?? null, 'into'))
+  )
   handle('conflicts:getRerere', (_e, r0) => cf.getRerere(runner, root(r0)))
   handle('conflicts:setRerere', (_e, r0, on) => cf.setRerere(runner, root(r0), assert.boolean(on, 'enabled')))
   handle('conflicts:configuredTool', (_e, r0) => cf.configuredMergeTool(runner, root(r0)))

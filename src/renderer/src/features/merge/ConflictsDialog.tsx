@@ -388,9 +388,9 @@ changesMenuExtras.items.push((root, e) =>
 )
 
 /** "Preview conflicts" in the merge dialog (git merge-tree, git ≥ 2.38). */
-function MergePreviewBox({ root, ref }: { root: string; ref: string }) {
+function MergePreviewBox({ root, ref, into }: { root: string; ref: string; into: string | null }) {
   const [on, setOn] = useState(false)
-  const q = useQuery({ queryKey: ['repo', root, 'preview', ref], queryFn: () => api.conflicts.preview(root, ref), enabled: on })
+  const q = useQuery({ queryKey: ['repo', root, 'preview', ref, into], queryFn: () => api.conflicts.preview(root, ref, into), enabled: on })
   if (q.data && !q.data.supported) return <div className="text-xs text-muted">Conflict preview needs git 2.38 or newer.</div>
   return (
     <div className="rounded border border-border-strong p-2 text-xs" data-testid="merge-preview">
@@ -417,4 +417,4 @@ function MergePreviewBox({ root, ref }: { root: string; ref: string }) {
     </div>
   )
 }
-mergePreview.render = ({ root, ref }) => <MergePreviewBox root={root} ref={ref} />
+mergePreview.render = ({ root, ref, into }) => <MergePreviewBox root={root} ref={ref} into={into} />

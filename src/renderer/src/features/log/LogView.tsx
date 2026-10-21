@@ -43,7 +43,15 @@ interface Props {
   sidebar?: (ctx: { query: LogQuery; setQuery(q: LogQuery): void; goTo(hash: string): Promise<void> }) => React.ReactNode
   renderMenu?: (
     selected: Commit[],
-    ctx: { goTo(hash: string): Promise<void>; openDiff(left: DiffSide, right: DiffSide, title?: string): void; branchCommits(): Commit[] }
+    ctx: {
+      goTo(hash: string): Promise<void>
+      openDiff(left: DiffSide, right: DiffSide, title?: string): void
+      branchCommits(): Commit[]
+      /** Ref label that was right-clicked (show its branch menu instead). */
+      ref: Ref | null
+      /** Refs pointing at the selected commit (single selection only). */
+      refs: Ref[]
+    }
   ) => React.ReactNode
 }
 
@@ -142,10 +150,16 @@ export function LogView({ tab, headSha, detached, sidebar, renderMenu }: Props) 
             onSelectionChange={setSelection}
             renderMenu={
               renderMenu
-                ? (sel) =>
+                ? (sel, ref) =>
                     renderMenu(
                       [...sel].sort((a, b) => (model.index.get(a.hash) ?? 0) - (model.index.get(b.hash) ?? 0)),
-                      { goTo, openDiff, branchCommits: () => model.commits.filter((c) => c.onCurrentBranch).slice(0, 500) }
+                      {
+                        goTo,
+                        openDiff,
+                        branchCommits: () => model.commits.filter((c) => c.onCurrentBranch).slice(0, 500),
+                        ref,
+                        refs: sel.length === 1 ? (byHash.get(sel[0]!.hash) ?? []) : []
+                      }
                     )
                 : undefined
             }

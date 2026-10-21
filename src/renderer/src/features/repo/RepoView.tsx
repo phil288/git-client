@@ -13,6 +13,7 @@ import { FileHistoryView } from '../history/FileHistoryView'
 import { RemotesView } from '../remotes/RemotesView'
 import { StashView } from '../stash/StashView'
 import { CommitMenu } from '../log/CommitMenu'
+import { LogRefMenu } from '../log/LogRefMenu'
 import { LogView, useRefs } from '../log/LogView'
 import { TagsView } from '../tags/TagsView'
 import { useWorktrees } from '../worktrees/WorktreeDialogs'
@@ -169,16 +170,21 @@ export function RepoView({ tab }: { tab: TabRef }) {
               sidebar={({ query, setQuery }) => (
                 <BranchesPanel tab={tab} refs={refs.data ?? []} currentBranch={r.branch} query={query} setQuery={setQuery} />
               )}
-              renderMenu={(selected, { openDiff, branchCommits }) => (
-                <CommitMenu
-                  root={tab.path}
-                  selected={selected}
-                  headSha={r.headSha}
-                  currentBranch={r.branch}
-                  branchCommits={branchCommits}
-                  openDiff={openDiff}
-                />
-              )}
+              renderMenu={(selected, { openDiff, branchCommits, ref, refs }) =>
+                ref ? (
+                  <LogRefMenu root={tab.path} r={ref} currentBranch={r.branch} />
+                ) : (
+                  <CommitMenu
+                    root={tab.path}
+                    selected={selected}
+                    refs={refs}
+                    headSha={r.headSha}
+                    currentBranch={r.branch}
+                    branchCommits={branchCommits}
+                    openDiff={openDiff}
+                  />
+                )
+              }
             />
           )}
         </div>

@@ -14,6 +14,8 @@ export function RefLabels({ refs, detachedHead, max = 3 }: { refs: Ref[]; detach
       {shown.map((r) => (
         <span
           key={r.name}
+          data-ref={r.name}
+          data-testid="ref-label"
           className={cn(
             'flex max-w-44 items-center gap-0.5 truncate rounded px-1 text-[11px] leading-4',
             r.kind === 'local' && 'bg-[color-mix(in_srgb,var(--ref-local)_18%,transparent)] text-[var(--ref-local)]',

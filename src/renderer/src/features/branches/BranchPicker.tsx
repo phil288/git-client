@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Check, ChevronDown, Cloud, FolderTree, GitBranch, Plus } from 'lucide-react'
+import { Check, ChevronDown, Cloud, FolderTree, GitBranch, GitMerge, Plus } from 'lucide-react'
 import { fuzzyFilter } from '@shared/fuzzy'
 import type { Ref } from '@shared/types'
 import { api } from '@/lib/api'
@@ -114,7 +114,7 @@ export function BranchPicker({ root }: { root: string }) {
                   onMouseMove={() => setIndex(i)}
                   onClick={() => pick(item)}
                   title={wt ? `Checked out in worktree ${wt.path}${wt.isMain ? ' (main)' : ''}${wt.prunable ? ' (missing, prunable)' : ''}\nClick to open it` : undefined}
-                  className={cn('flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-[13px]', i === index && 'bg-accent text-accent-fg')}
+                  className={cn('group flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-[13px]', i === index && 'bg-accent text-accent-fg')}
                 >
                   {item.kind === 'new' ? (
                     <>
@@ -136,6 +136,25 @@ export function BranchPicker({ root }: { root: string }) {
                         <span className="ml-auto shrink-0 text-[11px] opacity-70">
                           {item.ref.ahead > 0 && `↑${item.ref.ahead}`} {item.ref.behind > 0 && `↓${item.ref.behind}`}
                         </span>
+                      )}
+                      {!isHead && (
+                        <button
+                          className={cn(
+                            'shrink-0 rounded p-0.5 opacity-0 hover:bg-hover group-hover:opacity-100',
+                            !(item.ref.ahead > 0 || item.ref.behind > 0) && 'ml-auto',
+                            i === index && 'opacity-100'
+                          )}
+                          title={`Merge ‘${item.ref.short}’ into ‘${label ?? 'HEAD'}’…`}
+                          data-testid="branch-picker-merge"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setOpen(false)
+                            setQuery('')
+                            openModal({ kind: 'merge', root, source: item.ref.name, sourceLabel: item.ref.short })
+                          }}
+                        >
+                          <GitMerge className="size-3.5" />
+                        </button>
                       )}
                     </>
                   )}

@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { ArrowLeftRight } from 'lucide-react'
+import { AlertTriangle, ArrowLeftRight } from 'lucide-react'
 import type { Commit, MergeMode, Ref } from '@shared/types'
 import { WORKTREE } from '@shared/types'
 import { api, ApiError, errorInfo } from '@/lib/api'
-import { checkoutFlow, mergeFlow, refreshRepo, reportOutcome } from '@/lib/gitOps'
+import { checkoutFlow, mergeBranchFlow, refreshRepo, reportOutcome } from '@/lib/gitOps'
 import { formatDate, shortHash } from '@/lib/format'
 import { notifyError } from '@/lib/notify'
 import { cn, newId } from '@/lib/utils'
@@ -21,6 +21,9 @@ import { Input, Label } from '@/components/ui/input'
 import { ChangesBrowser } from '../common/ChangesBrowser'
 import { RefSelect, type RefChoice } from '../common/RefSelect'
 import { useRefs } from '../log/LogView'
+import { useChangedCount } from '../worktrees/WorktreeDialogs'
+
+const selectCls = 'h-7 rounded-md border border-border-strong bg-bg px-2 text-[13px]'
 
 function useOpen() {
   return { open: true, onOpenChange: (o: boolean) => !o && closeModal() }
@@ -151,43 +154,131 @@ const MERGE_OPTIONS: { mode: MergeMode; label: string; help: string }[] = [
   { mode: 'squash', label: '--squash', help: 'Apply all changes as staged changes, without a merge commit (commit them yourself).' }
 ]
 
-/** Hook for M8's conflict preview (git merge-tree). */
-export const mergePreview: { render?: (p: { root: string; ref: string }) => React.ReactNode } = {}
+/** Hook for M8's conflict preview (git merge-tree); `into` null = HEAD. */
+export const mergePreview: { render?: (p: { root: string; ref: string; into: string | null }) => React.ReactNode } = {}
 
-export function MergeDialog({ root, ref, label, current }: { root: string; ref: string; label: string; current: string | null }) {
+/** Preflight of merging `source` into local branch `target`; null while unknown. */
+export function useMergePlan(root: string, source: string, target: string | null) {
+  return useQuery({
+    queryKey: ['repo', root, 'mergePlan', source, target],
+    queryFn: () => api.branch.mergePlan(root, source, target!),
+    enabled: !!source && !!target
+  }).data ?? null
+}
+
+const DETACHED = ''
+
+/**
+ * Merge any branch, remote branch, tag or commit into any local branch (the
+ * current one by default). Runs where the target is checked out.
+ */
+export function MergeDialog({ root, source: source0, sourceLabel, target: target0 }: { root: string; source?: string; sourceLabel?: string; target?: string }) {
+  const info = useQuery({ queryKey: ['repo', root, 'info'], queryFn: () => api.repo.info(root) })
+  const refs = useRefs(root)
+  const current = info.data?.branch ?? null
+  const locals = (refs.data ?? []).filter((r) => r.kind === 'local').map((r) => r.short)
+  const [source, setSource] = useState<RefChoice>({ rev: source0 ?? '', label: sourceLabel ?? (source0 ? source0.replace(/^refs\/(heads|remotes|tags)\//, '') : 'Choose…') })
+  const [picked, setPicked] = useState<string | null>(target0 ?? null)
   const [mode, setMode] = useState<MergeMode>('default')
+  // '' (DETACHED) = merge into a detached HEAD.
+  const target = picked ?? current ?? DETACHED
+  const into = target === DETACHED ? null : target
+  const plan = useMergePlan(root, source.rev, into)
+  const changed = useChangedCount(plan?.host ?? root, !into || !!plan?.host)
+  const ahead = into ? (plan?.ahead ?? null) : null
+  const same = !!into && (source.rev === into || source.rev === `refs/heads/${into}`)
+  const needsCheckout = !!plan && !plan.host && (!plan.canFastForward || mode === 'no-ff' || mode === 'squash')
+  const squashOk = !into || (plan?.isCurrent ?? into === current)
+  const effMode = mode === 'squash' && !squashOk ? 'default' : mode
+
   return (
     <Dialog {...useOpen()}>
-      <DialogContent className="max-w-md" data-testid="merge-dialog">
+      <DialogContent className="max-w-lg" data-testid="merge-dialog">
         <DialogHeader>
           <DialogTitle>
-            Merge ‘{label}’ into ‘{current ?? 'HEAD'}’
+            Merge ‘{source.rev ? source.label : '…'}’ into ‘{into ?? 'HEAD'}’
           </DialogTitle>
         </DialogHeader>
-        <div className="flex flex-col gap-2">
-          {MERGE_OPTIONS.map((o) => (
-            <label key={o.mode} className="flex cursor-pointer items-start gap-2 rounded p-1 hover:bg-hover">
-              <input type="radio" className="mt-1" checked={mode === o.mode} onChange={() => setMode(o.mode)} />
-              <span>
-                <span className="font-mono text-[13px]">{o.label}</span>
-                <span className="block text-xs text-muted">{o.help}</span>
-              </span>
-            </label>
-          ))}
-          {mergePreview.render?.({ root, ref })}
-          <div className="text-xs text-muted">A backup of the current branch is saved first; you can undo the merge afterwards.</div>
+        <div className="flex flex-col gap-2 text-[13px]">
+          <div className="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2">
+            <Label>Merge</Label>
+            <RefSelect root={root} value={source} onChange={setSource} headLabel={current} testId="merge-source" />
+            <Label htmlFor="merge-target">Into</Label>
+            <select id="merge-target" className={selectCls} value={target} onChange={(e) => setPicked(e.target.value)} data-testid="merge-target">
+              {current === null && <option value={DETACHED}>HEAD (detached)</option>}
+              {locals.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                  {b === current ? ' (current)' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+          {plan && ahead !== 0 && (
+            <div className="text-xs text-muted" data-testid="merge-where">
+              {plan.isCurrent ? (
+                <>Runs here, in the current working tree.</>
+              ) : plan.host ? (
+                <>
+                  Runs in the worktree where ‘{into}’ is checked out: <span className="font-mono">{plan.host}</span>
+                </>
+              ) : needsCheckout ? (
+                <>‘{into}’ is not checked out anywhere: it will be checked out here first.</>
+              ) : (
+                <>‘{into}’ is not checked out anywhere: it is fast-forwarded without a checkout.</>
+              )}
+            </div>
+          )}
+          {MERGE_OPTIONS.map((o) => {
+            const disabled = o.mode === 'squash' && !squashOk
+            return (
+              <label key={o.mode} className={cn('flex items-start gap-2 rounded p-1', disabled ? 'opacity-50' : 'cursor-pointer hover:bg-hover')}>
+                <input type="radio" className="mt-1" disabled={disabled} checked={effMode === o.mode} onChange={() => setMode(o.mode)} />
+                <span>
+                  <span className="font-mono text-[13px]">{o.label}</span>
+                  <span className="block text-xs text-muted">{disabled ? 'Only into the current branch: the result is staged here for you to commit.' : o.help}</span>
+                </span>
+              </label>
+            )
+          })}
+          {same ? (
+            <div className="text-xs text-danger">Source and target are the same branch.</div>
+          ) : ahead === 0 ? (
+            <div className="flex items-start gap-2 rounded border border-danger/40 bg-danger/10 p-2 text-xs" data-testid="merge-nothing">
+              <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-danger" />
+              Nothing to merge: ‘{source.label}’ has no commits that ‘{into}’ doesn’t already have.
+            </div>
+          ) : (
+            ahead !== null && (
+              <div className="text-xs" data-testid="merge-count">
+                {ahead} commit{ahead === 1 ? '' : 's'} of ‘{source.label}’ will be merged into ‘{into}’.
+              </div>
+            )
+          )}
+          {ahead !== 0 && (changed ?? 0) > 0 && (
+            <div className="flex items-start gap-2 rounded border border-warning/40 bg-warning/10 p-2 text-xs">
+              <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-warning" />
+              {needsCheckout
+                ? `You have ${changed} uncommitted change${changed === 1 ? '' : 's'}: the checkout will offer to stash them (Smart Checkout).`
+                : `The working tree has ${changed} uncommitted change${changed === 1 ? '' : 's'}: git refuses the merge if they touch the same files.`}
+            </div>
+          )}
+          {source.rev && ahead !== 0 && !same && mergePreview.render?.({ root, ref: source.rev, into })}
+          <div className="text-xs text-muted">A backup of ‘{into ?? 'HEAD'}’ is saved first; you can undo the merge afterwards.</div>
         </div>
         <DialogFooter>
           <Button variant="secondary" onClick={closeModal}>
             Cancel
           </Button>
           <Button
+            disabled={!source.rev || same || ahead === 0 || (!!into && !plan)}
+            data-testid="merge-confirm"
             onClick={() => {
               closeModal()
-              void mergeFlow(root, ref, mode)
+              void mergeBranchFlow(root, source.rev, source.label, into, effMode)
             }}
           >
-            Merge
+            {needsCheckout ? 'Checkout and Merge' : ahead ? `Merge ${ahead} commit${ahead === 1 ? '' : 's'}` : 'Merge'}
           </Button>
         </DialogFooter>
       </DialogContent>
