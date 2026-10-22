@@ -18,7 +18,7 @@ export function registerAiHandlers(ctx: MainContext): void {
     const id = assert.nonEmptyString(opId, 'opId')
     const amend = assert.boolean((o as { amend?: unknown } | null)?.amend, 'amend')
 
-    const { aiCommitTool: setting, aiModels } = ctx.settings()
+    const { aiCommitTool: setting, aiModels, aiCommitInstructions } = ctx.settings()
     const tools = detectTools()
     let tool: { id: AiTool; path: string }
     if (setting === 'auto' || !AI_TOOLS.includes(setting)) {
@@ -51,6 +51,7 @@ export function registerAiHandlers(ctx: MainContext): void {
           amend,
           signal: op.signal,
           recentMessages: getPrefs(ctx, root).recentMessages,
+          instructions: aiCommitInstructions,
           onProgress: progress
         })
       } finally {

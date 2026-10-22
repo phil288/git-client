@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { isValidAiModel, resolveAiTool } from '@shared/aiTool'
+import { AI_INSTRUCTIONS_MAX, defaultCommitInstructions, isValidAiModel, resolveAiTool } from '@shared/aiTool'
 import { AI_TOOLS, AI_TOOL_LABEL, type AiTool, type Settings } from '@shared/types'
 import { api } from '@/lib/api'
 import { notifyError, run } from '@/lib/notify'
@@ -54,6 +54,32 @@ function AiModelInput({ value, onSave }: { value: string; onSave: (model: string
         data-testid="ai-model-input"
       />
       {!valid && <div className="text-xs text-danger">Letters, digits and . _ : / [ ] - only; must start with a letter or digit</div>}
+    </div>
+  )
+}
+
+/** Instruction block of the commit-message prompt; '' = built-in (picks Conventional Commits or imperative per repository). */
+function AiInstructionsInput({ value, onSave }: { value: string; onSave: (text: string) => void }) {
+  return (
+    <div className="flex min-w-0 flex-1 flex-col gap-1">
+      <textarea
+        value={value}
+        rows={value ? 9 : 3}
+        maxLength={AI_INSTRUCTIONS_MAX}
+        spellCheck={false}
+        placeholder="Built-in instructions (Conventional Commits or imperative subject, matching the repository)"
+        className="w-full resize-y rounded-md border border-border-strong bg-bg px-2 py-1 font-mono text-xs"
+        onChange={(e) => onSave(e.target.value)}
+        data-testid="ai-instructions-input"
+      />
+      <div className="flex gap-2">
+        <Button size="sm" variant="ghost" disabled={value !== ''} onClick={() => onSave(defaultCommitInstructions('adaptive'))} data-testid="ai-instructions-default">
+          Start from default
+        </Button>
+        <Button size="sm" variant="ghost" disabled={value === ''} onClick={() => onSave('')} data-testid="ai-instructions-reset">
+          Reset to built-in
+        </Button>
+      </div>
     </div>
   )
 }
@@ -193,6 +219,12 @@ export function SettingsDialog() {
               />
             </Row>
           )}
+          <Row
+            label="AI commit prompt"
+            help="Instructions sent before the repository data (recent subjects, amend context, changed files, diff), which is always appended."
+          >
+            <AiInstructionsInput value={s.aiCommitInstructions} onSave={(text) => set('aiCommitInstructions', text)} />
+          </Row>
           <Row label="Editor command" help="Used by “Open in Editor”; the path is appended">
             <Input value={s.editorCommand} onChange={(e) => set('editorCommand', e.target.value)} placeholder="code" />
           </Row>

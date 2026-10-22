@@ -205,6 +205,8 @@ export interface Settings {
   aiCommitTool: AiTool | 'auto'
   /** Per-tool model passed as `--model`; missing or '' = the CLI's own default. See isValidAiModel. */
   aiModels: Partial<Record<AiTool, string>>
+  /** Replaces the built-in instruction block of the commit-message prompt; '' = built-in. */
+  aiCommitInstructions: string
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -226,7 +228,8 @@ export const DEFAULT_SETTINGS: Settings = {
   mergeTool: '',
   worktreeForceRemove: false,
   aiCommitTool: 'auto',
-  aiModels: {}
+  aiModels: {},
+  aiCommitInstructions: ''
 }
 
 // ---------------------------------------------------------------------------

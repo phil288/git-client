@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { delimiter, dirname, join } from 'node:path'
 import { AI_TOOL_LABEL, type AiCommitResult, type AiTool } from '@shared/types'
-import { isValidAiModel } from '@shared/aiTool'
+import { AI_INSTRUCTIONS_MAX, isValidAiModel } from '@shared/aiTool'
 import { AppError } from '../git/errors'
 import { killProcessTree, type GitRunner } from '../git/runner'
 import { cleanCommitMessage } from './clean'
@@ -22,6 +22,8 @@ export interface GenerateOptions {
   /** Messages the user recently committed with this app (style hints). */
   recentMessages?: readonly string[]
   timeoutMs?: number
+  /** Custom instruction block from Settings; '' = built-in. */
+  instructions?: string
   /** Status-bar text for each phase. */
   onProgress?: (message: string) => void
 }
@@ -233,7 +235,7 @@ export async function generateCommitMessage(
 ): Promise<AiCommitResult> {
   opts.onProgress?.('Reading staged changes…')
   const ctx = await gatherStagedContext(runner, root, opts.amend, opts.signal)
-  const prompt = buildPrompt({ ...ctx, amend: opts.amend, recentMessages: opts.recentMessages })
+  const prompt = buildPrompt({ ...ctx, amend: opts.amend, recentMessages: opts.recentMessages, instructions: opts.instructions?.slice(0, AI_INSTRUCTIONS_MAX) })
   opts.onProgress?.(`Asking ${AI_TOOL_LABEL[tool.id]}…`)
   const res = await runTool(tool.id, tool.path, root, prompt, { signal: opts.signal, timeoutMs: opts.timeoutMs, model: tool.model })
   const message = cleanCommitMessage(res.answerFile?.trim() ? res.answerFile : res.stdout)

@@ -15,12 +15,13 @@ let work: string
 let fakeCli: string
 test.beforeAll(() => {
   work = realpathSync(mkdtempSync(join(tmpdir(), 'gitclient-e2e-ai-')))
-  // Stand-in for the Claude CLI: ignores stdin content and prints a fixed message.
+  // Stand-in for the Claude CLI: prints a fixed message; FAKE_CLI_ARGV / FAKE_CLI_STDIN record what it got.
   fakeCli = join(work, 'fake-claude.cjs')
   writeFileSync(
     fakeCli,
     `if (process.env.FAKE_CLI_ARGV) require('node:fs').writeFileSync(process.env.FAKE_CLI_ARGV, JSON.stringify(process.argv.slice(2)))
-if (process.env.FAKE_CLI_HANG) { setInterval(() => {}, 1000) } else { process.stdin.resume(); process.stdin.on('end', () => process.stdout.write(${JSON.stringify(GENERATED + '\n')})); process.stdin.on('error', () => {}) }\n`
+let stdin = ''
+if (process.env.FAKE_CLI_HANG) { setInterval(() => {}, 1000) } else { process.stdin.resume(); process.stdin.on('data', (c) => { stdin += c }); process.stdin.on('end', () => { if (process.env.FAKE_CLI_STDIN) require('node:fs').writeFileSync(process.env.FAKE_CLI_STDIN, stdin); process.stdout.write(${JSON.stringify(GENERATED + '\n')}) }); process.stdin.on('error', () => {}) }\n`
   )
 })
 test.afterAll(() => rmSync(work, { recursive: true, force: true }))
@@ -83,15 +84,19 @@ test('clicking Generate again cancels without an error toast', async () => {
   await app.close()
 })
 
-test('the model set in Settings is passed to the CLI as --model', async () => {
-  const argvFile = join(work, 'model-argv.json')
-  const { app, page } = await launch('model', { FAKE_CLI_ARGV: argvFile })
+async function openSettings(app: Awaited<ReturnType<typeof launch>>['app']): Promise<void> {
   // Native menu accelerators do not see Playwright key presses: click the menu item instead.
   await app.evaluate(({ Menu }) => {
     const find = (items: Electron.MenuItem[]): Electron.MenuItem | undefined =>
       items.map((i) => (i.label === 'Settings…' ? i : i.submenu ? find(i.submenu.items) : undefined)).find(Boolean)
     find(Menu.getApplicationMenu()!.items)!.click()
   })
+}
+
+test('the model set in Settings is passed to the CLI as --model', async () => {
+  const argvFile = join(work, 'model-argv.json')
+  const { app, page } = await launch('model', { FAKE_CLI_ARGV: argvFile })
+  await openSettings(app)
   const settings = page.getByTestId('settings-dialog')
   await settings.getByTestId('ai-tool-select').selectOption('claude')
   const model = settings.getByTestId('ai-model-input')
@@ -106,5 +111,26 @@ test('the model set in Settings is passed to the CLI as --model', async () => {
   await expect(page.getByTestId('commit-message')).toHaveValue(GENERATED)
   const argv = JSON.parse(readFileSync(argvFile, 'utf8')) as string[]
   expect(argv.slice(-2)).toEqual(['--model', 'opus[1m]'])
+  await app.close()
+})
+
+test('custom prompt instructions from Settings replace the built-in ones', async () => {
+  const stdinFile = join(work, 'prompt-stdin.txt')
+  const { app, page } = await launch('prompt', { FAKE_CLI_STDIN: stdinFile })
+  await openSettings(app)
+  const settings = page.getByTestId('settings-dialog')
+  await settings.getByTestId('ai-instructions-default').click()
+  const instructions = settings.getByTestId('ai-instructions-input')
+  await expect(instructions).toHaveValue(/Output ONLY the raw commit message/)
+  await instructions.fill('Write the commit message in French. zzcustomzz')
+  await page.keyboard.press('Escape')
+  await expect(settings).toHaveCount(0)
+
+  await page.getByTestId('ai-generate').click()
+  await expect(page.getByTestId('commit-message')).toHaveValue(GENERATED)
+  const prompt = readFileSync(stdinFile, 'utf8')
+  expect(prompt.startsWith('Write the commit message in French. zzcustomzz\n')).toBe(true)
+  expect(prompt).not.toContain('Output ONLY the raw commit message')
+  expect(prompt).toContain('hello.txt')
   await app.close()
 })
