@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { CheckCircle2 } from 'lucide-react'
+import { CheckCircle2, Loader2, Sparkles } from 'lucide-react'
 import type { ConflictFile, ConflictState, ConflictType, SideAction } from '@shared/types'
 import { api, errorInfo } from '@/lib/api'
 import { outcomeActions, refreshRepo, reportOutcome } from '@/lib/gitOps'
@@ -18,6 +18,7 @@ import { changesMenuExtras } from '../changes/ChangesView'
 import { CommitMessageEditor } from '../common/CommitMessageEditor'
 import { DiffViewer } from '../diff/LazyDiffViewer'
 import { ContextMenuItem } from '@/components/ui/context-menu'
+import { aiResolveConflicts, useAiResolveOp } from './aiResolve'
 import { MergeEditor } from './LazyMergeEditor'
 
 const TYPE_LABEL: Record<ConflictType, string> = {
@@ -136,7 +137,10 @@ export function ConflictsDialog({ root }: { root: string }) {
   const st = q.data
   const [sel, setSel] = useState<Set<string>>(new Set())
   const [message, setMessage] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
+  const [busyLocal, setBusy] = useState(false)
+  const aiOp = useAiResolveOp(root)
+  // While the AI resolves, other actions on the same files would race with it.
+  const busy = busyLocal || !!aiOp
   const files = useMemo(() => st?.files ?? [], [st])
   const selected = files.filter((f) => sel.has(f.path))
   const single = selected.length === 1 ? selected[0]! : null
@@ -345,6 +349,17 @@ export function ConflictsDialog({ root }: { root: string }) {
               )}
               <Button size="sm" variant="ghost" className="ml-auto" disabled={busy} onClick={() => void autoResolve()} data-testid="auto-resolve">
                 Resolve simple conflicts automatically
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={busyLocal}
+                title={aiOp ? 'Cancel' : 'Same as Auto Merge: Markdown keeps both sides, other files are resolved by the AI tool from Settings'}
+                onClick={() => void aiResolveConflicts(root)}
+                data-testid="ai-resolve"
+              >
+                {aiOp ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
+                {aiOp ? 'Cancel AI Resolve' : 'Resolve with AI'}
               </Button>
             </div>
           </div>

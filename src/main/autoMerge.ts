@@ -1,18 +1,14 @@
-import { isMarkdownPath } from '@shared/autoMerge'
-import { joinLines, splitLines } from '@shared/merge3'
-import { unionMerge } from '@shared/mergeModel'
-import type { AiToolInfo, AutoMergeResult, Settings } from '@shared/types'
+import type { AiResolveResult, AiToolInfo, AutoMergeResult, Settings } from '@shared/types'
 import { generateCommitMessage } from './ai/commitMessage'
 import { pickTool, type PickedTool } from './ai/pickTool'
-import { resolveConflictWithAi } from './ai/resolveConflict'
 import { deleteBranch } from './git/branches'
-import { acceptSide, conflictState, conflictVersions, resolveDelete, saveResolution } from './git/conflicts'
 import { AppError } from './git/errors'
 import type { GitRunner } from './git/runner'
 import { continueOperation, operationState } from './git/sequencer'
 import { commit, stageFiles, workingStatus } from './git/workingTree'
 import { defaultBranch, listWorktrees, mergePlan, mergeRefInto, pendingMerges, removeWorktree } from './git/worktrees'
 import { normalizeRepoPath, samePath } from './paths'
+import { resolveConflictsAuto } from './resolveConflicts'
 
 export interface AutoMergeDeps {
   runner: GitRunner
@@ -116,8 +112,7 @@ export async function autoMergeWorktree(deps: AutoMergeDeps, root: string, path:
 
   let mergedIn: string | null = resumeIn?.path ?? null
   let merged = plan.ahead
-  const unionResolved: string[] = []
-  const aiResolved: string[] = []
+  let resolved: Pick<AiResolveResult, 'unionResolved' | 'aiResolved'> = { unionResolved: [], aiResolved: [] }
 
   if (!resumeIn && plan.ahead > 0) {
     // 3. Merge (mergeRefInto writes the backup ref in the host first).
@@ -129,82 +124,16 @@ export async function autoMergeWorktree(deps: AutoMergeDeps, root: string, path:
 
   const host = mergedIn
   if (host && (resumeIn || (await operationState(runner, host)).operation === 'merge')) {
-    // 4. Resolve conflicts.
-    const unresolved: string[] = []
-    const reasons: string[] = []
-    const state = await conflictState(runner, host)
-    const forAi: string[] = []
-    if (state.files.length > 0) step(4, `Resolving ${state.files.length} conflict${state.files.length === 1 ? '' : 's'}…`)
-    for (const f of state.files) {
-      checkCancel()
-      if (f.type === 'both-deleted') {
-        await resolveDelete(runner, host, [f.path])
-        continue
-      }
-      const md = isMarkdownPath(f.path)
-      if (f.submodule || f.binary) {
-        unresolved.push(f.path)
-        reasons.push(`${f.path}: ${f.submodule ? 'submodule' : 'binary file'}`)
-      } else if (f.type === 'content' || f.type === 'add-add') {
-        if (!md) {
-          forAi.push(f.path)
-          continue
-        }
-        const v = await conflictVersions(runner, host, f.path)
-        const lines = unionMerge(splitLines(v.base.text), splitLines(v.yours.text), splitLines(v.theirs.text))
-        await saveResolution(runner, host, f.path, joinLines(lines, { eol: v.eol, finalNewline: v.finalNewline }), v.yours.exists ? v.yours.encoding : v.theirs.encoding)
-        unionResolved.push(f.path)
-      } else if (md) {
-        // Deleted on one side, changed or renamed on the other: keep the side that still has the file.
-        await acceptSide(runner, host, [f.path], f.yours === 'deleted' ? 'theirs' : 'yours')
-        unionResolved.push(f.path)
-      } else {
-        unresolved.push(f.path)
-        reasons.push(`${f.path}: ${f.type.replace(/-/g, ' ')} needs a decision`)
-      }
-    }
-
-    if (forAi.length > 0) {
-      let tool: (PickedTool & { model?: string }) | null = null
-      try {
-        tool = toolFor(settings.aiMergeTool === 'same' ? settings.aiCommitTool : settings.aiMergeTool)
-      } catch (e) {
-        unresolved.push(...forAi)
-        reasons.push(errMessage(e))
-      }
-      if (tool) {
-        const subjects = async (range: string) =>
-          (await runner.run(['log', '-10', '--no-merges', '--format=%s', range], { cwd: host, okExitCodes: [0, 128] })).stdout.split('\n').filter(Boolean)
-        const oursSubjects = await subjects('MERGE_HEAD..HEAD')
-        const theirsSubjects = await subjects('HEAD..MERGE_HEAD')
-        for (const [i, p] of forAi.entries()) {
-          checkCancel()
-          step(4, `Resolving ${p} (${i + 1}/${forAi.length})…`)
-          try {
-            const v = await conflictVersions(runner, host, p)
-            const text = await resolveConflictWithAi({
-              tool,
-              root: host,
-              versions: v,
-              oursLabel: target,
-              theirsLabel: branch,
-              oursSubjects,
-              theirsSubjects,
-              instructions: settings.aiMergeInstructions,
-              signal: opts.signal,
-              timeoutMs: opts.aiTimeoutMs
-            })
-            await saveResolution(runner, host, p, text, v.yours.exists ? v.yours.encoding : v.theirs.encoding)
-            aiResolved.push(p)
-          } catch (e) {
-            if (e instanceof AppError && e.code === 'CANCELLED') throw e
-            unresolved.push(p)
-            reasons.push(`${p}: ${errMessage(e)}`)
-          }
-        }
-      }
-    }
-
+    // 4. Resolve conflicts (shared with the conflict tool's "Resolve with AI").
+    const res = await resolveConflictsAuto(deps, host, {
+      signal: opts.signal,
+      progress: (m) => step(4, m),
+      oursLabel: target,
+      theirsLabel: branch,
+      aiTimeoutMs: opts.aiTimeoutMs
+    })
+    const { unresolved, reasons, unionResolved, aiResolved } = res
+    resolved = { unionResolved, aiResolved }
     if (unresolved.length > 0) {
       const message = `The merge of ${branch} into ${target} is open in ${host}: ${unresolved.length} conflict${unresolved.length === 1 ? '' : 's'} could not be resolved automatically.\n${reasons.join('\n')}`
       return { status: 'stopped', target, host, message, unresolved, unionResolved, aiResolved, committed }
@@ -237,6 +166,6 @@ export async function autoMergeWorktree(deps: AutoMergeDeps, root: string, path:
       warning = `Merged and removed the worktree, but ${branch} was not deleted: ${errMessage(e)}`
     }
   }
-  return { status: 'done', target, mergedIn: host, committed, merged, unionResolved, aiResolved, worktreeRemoved, branchDeleted, warning }
+  return { status: 'done', target, mergedIn: host, committed, merged, ...resolved, worktreeRemoved, branchDeleted, warning }
 }
 

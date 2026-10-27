@@ -162,6 +162,7 @@ export const api = {
     markResolved: (root: string, paths: string[]) => call('conflicts:markResolved', root, paths),
     delete: (root: string, paths: string[]) => call('conflicts:delete', root, paths),
     save: (root: string, path: string, text: string, encoding: FileContent['encoding']) => call('conflicts:save', root, path, text, encoding),
+    aiResolve: (root: string, opId: string) => call('conflicts:aiResolve', root, opId),
     autoResolve: (root: string, paths: string[] | null) => call('conflicts:autoResolve', root, paths),
     mergeTool: (root: string, path: string) => call('conflicts:mergeTool', root, path),
     preview: (root: string, ref: string, into?: string | null) => call('conflicts:preview', root, ref, into ?? null),

@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { DEFAULT_SETTINGS, type AiToolInfo, type Settings } from '../../src/shared/types'
@@ -8,6 +8,7 @@ import { locateGit } from '../../src/main/git/locate'
 import { CommandLogger } from '../../src/main/git/logger'
 import { GitRunner } from '../../src/main/git/runner'
 import { commitFile, git, initRepo, tempDir, write } from '../helpers'
+import { fakeAiCli, prompts } from './fakeAiCli'
 
 let runner: GitRunner
 const root = tempDir('gitclient-automerge-')
@@ -18,43 +19,7 @@ beforeAll(async () => {
   runner = new GitRunner(s.git.path, new CommandLogger())
 })
 
-/**
- * Fake CLI (same seam as tests/integration/ai.test.ts): commit-message prompts get
- * `commitMessage`; conflict prompts get `resolve(markedFile)`'s output. Every
- * prompt is appended to <cli>.log so tests can see what was asked.
- */
-function fakeCli(name: string, resolveBody = 'return keepBoth(file)', commitMessage = 'feat: work from the worktree'): string {
-  const p = join(bin, `${name}.mjs`)
-  write(bin, `${name}.mjs`, '')
-  writeFileSync(
-    p,
-    `import { appendFileSync } from 'node:fs'
-function keepBoth(file) {
-  const out = []
-  let mode = null
-  for (const l of file.split('\\n')) {
-    if (l.startsWith('<<<<<<< ')) mode = 'ours'
-    else if (l.startsWith('||||||| ')) mode = 'base'
-    else if (l === '=======') mode = 'theirs'
-    else if (l.startsWith('>>>>>>> ')) mode = null
-    else if (mode !== 'base') out.push(l)
-  }
-  return out.join('\\n')
-}
-function resolve(file) { ${resolveBody} }
-const chunks = []
-process.stdin.on('data', (c) => chunks.push(c))
-process.stdin.on('end', async () => {
-  const prompt = Buffer.concat(chunks).toString('utf8')
-  appendFileSync(${JSON.stringify(p + '.log')}, prompt + '\\n<<END PROMPT>>\\n')
-  const m = /--- BEGIN FILE ---\\n([\\s\\S]*)\\n--- END FILE ---/.exec(prompt)
-  if (m) process.stdout.write(await resolve(m[1]))
-  else process.stdout.write(${JSON.stringify(commitMessage)} + '\\n')
-})
-`
-  )
-  return p
-}
+const fakeCli = (name: string, resolveBody?: string, commitMessage?: string) => fakeAiCli(bin, name, resolveBody, commitMessage)
 
 function deps(cli: string, patch: Partial<Settings> = {}): AutoMergeDeps {
   const tools: AiToolInfo[] = [{ id: 'claude', label: 'Claude Code', path: cli }]
@@ -75,7 +40,6 @@ function setup(name: string): { main: string; wt: string } {
 const read = (dir: string, rel: string) => readFileSync(join(dir, rel), 'utf8')
 const branchExists = (dir: string, b: string) => git(dir, 'branch', '--list', b).trim() !== ''
 const mergeHead = (dir: string) => existsSync(join(dir, '.git', 'MERGE_HEAD'))
-const prompts = (cli: string) => (existsSync(`${cli}.log`) ? readFileSync(`${cli}.log`, 'utf8').split('\n<<END PROMPT>>\n').filter(Boolean) : [])
 
 describe('autoMergeWorktree', () => {
   it('commits uncommitted work with an AI message, merges, removes the worktree and deletes the branch', async () => {

@@ -27,7 +27,8 @@ of its own is the release update check, which can be turned off).
 - **Commit tool window** — stage files or individual hunks, discard, amend, sign-off,
   commit and push.
 - **3-way merge tool** — conflicts dialog with correct Yours/Theirs labels for merge, rebase and
-  cherry-pick, auto-resolve, per-chunk accept/remove, editable result, merge preview, rerere.
+  cherry-pick, auto-resolve, Resolve with AI (Auto Merge's Markdown keep-both + AI step), per-chunk
+  accept/remove, editable result, merge preview, rerere.
 - **Stash, file history, blame, tags, remotes and worktrees** — including creating, locking,
   pruning and merging Git worktrees, plus one-click Auto Merge (commit, merge into main,
   AI conflict resolution, cleanup).
@@ -152,7 +153,7 @@ Publishing a release and testing the install one-liners: [docs/RELEASING.md](doc
 | 5 | History rewriting: scripted `rebase -i`, backup refs + undo, reword/squash/fixup/drop/reorder, reset, revert, cherry-pick, patches, reflog, rebase-in-progress mode | done |
 | 6 | Local changes & commit: file/hunk staging, discard, amend, sign-off, commit and push | done |
 | 7 | Stash, file history, blame, tags, remotes | done |
-| 8 | Conflicts: banner, conflicts dialog with correct Yours/Theirs, auto-resolve, 3-way merge editor, special types, merge-tree preview, rerere | done |
+| 8 | Conflicts: banner, conflicts dialog with correct Yours/Theirs, auto-resolve, Resolve with AI, 3-way merge editor, special types, merge-tree preview, rerere | done |
 | 9 | Settings, auto-fetch, jump list, Explorer/Nautilus entries, error handling, 100k-commit performance | done |
 | 10 | CI + release workflows, stable assets + SHA256SUMS, install.sh, install.ps1, update check | done |
 | — | Worktrees: list, create (new/existing branch), open in tab, lock/unlock, prune, remove (`-f -f` force), merge into main with worktree + branch cleanup, one-click Auto Merge (AI commit, Markdown keep-both / AI conflict resolution, remove worktree + branch) | done |

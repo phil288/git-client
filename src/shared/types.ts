@@ -682,6 +682,17 @@ export interface MergeIntoResult {
 
 export type WorktreeMergeResult = MergeIntoResult
 
+/** Auto Merge's conflict step run on any open operation: what was resolved (and staged), what is left. */
+export interface AiResolveResult {
+  /** Markdown conflicts resolved by keeping both sides. */
+  unionResolved: string[]
+  /** Conflicts resolved by the AI CLI (worth a review). */
+  aiResolved: string[]
+  unresolved: string[]
+  /** One line per file left (or the AI tool problem). */
+  reasons: string[]
+}
+
 /**
  * Outcome of the one-click worktree Auto Merge (commit → merge into the default
  * branch → resolve conflicts → commit merge → remove worktree + branch).

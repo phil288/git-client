@@ -1,8 +1,11 @@
 import type { FileContent } from '@shared/types'
+import { detectTools } from '../ai/detect'
 import type { MainContext } from '../context'
 import * as cf from '../git/conflicts'
 import { AppError } from '../git/errors'
 import { assert } from '../ipcRegistry'
+import { latestProgress } from '../operations'
+import { resolveConflictsAuto } from '../resolveConflicts'
 
 const ENCODINGS: FileContent['encoding'][] = ['utf8', 'utf8bom', 'utf16le', 'utf16be', 'latin1']
 
@@ -48,6 +51,20 @@ export function registerConflictHandlers(ctx: MainContext, gitVersion: () => [nu
   handle('conflicts:autoResolve', (_e, r0, ps) => {
     const r = root(r0)
     return mutate(r, () => cf.autoResolve(runner, r, ps === null ? undefined : paths(ps)))
+  })
+  handle('conflicts:aiResolve', (_e, r0, opId) => {
+    const r = root(r0)
+    const id = assert.nonEmptyString(opId, 'opId')
+    return mutate(r, () =>
+      ctx.ops.run(id, 'Resolve conflicts with AI', true, async (op) => {
+        const p = latestProgress(op)
+        try {
+          return await resolveConflictsAuto({ runner, settings: ctx.settings, detectTools: () => detectTools() }, r, { signal: op.signal, progress: (m) => p.progress(m, null) })
+        } finally {
+          p.dispose()
+        }
+      })
+    )
   })
   handle('conflicts:mergeTool', (_e, r0, p) => {
     const r = root(r0)

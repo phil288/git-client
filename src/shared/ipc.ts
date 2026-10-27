@@ -1,5 +1,6 @@
 import type {
   AiCommitResult,
+  AiResolveResult,
   AutoMergeResult,
   AiToolInfo,
   AppInfo,
@@ -270,6 +271,8 @@ export interface IpcInvokeMap {
   'conflicts:save': [[root: string, path: string, text: string, encoding: FileContent['encoding']], void]
   'conflicts:autoResolve': [[root: string, paths: string[] | null], { resolved: string[]; remaining: { path: string; conflicts: number }[] }]
   'conflicts:mergeTool': [[root: string, path: string], void]
+  /** Auto Merge's conflict step: Markdown keeps both sides, other text files go to the AI CLI. Cancellable via 'ops:cancel'. */
+  'conflicts:aiResolve': [[root: string, opId: string], AiResolveResult]
   /** `into` (a local branch) previews a merge into that branch instead of HEAD. */
   'conflicts:preview': [[root: string, ref: string, into?: string | null], MergePreview]
   'conflicts:getRerere': [[root: string], boolean]
@@ -456,6 +459,7 @@ const invokeChannelRecord = {
   'conflicts:save': true,
   'conflicts:autoResolve': true,
   'conflicts:mergeTool': true,
+  'conflicts:aiResolve': true,
   'conflicts:preview': true,
   'conflicts:getRerere': true,
   'conflicts:setRerere': true,

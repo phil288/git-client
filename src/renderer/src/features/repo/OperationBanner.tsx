@@ -1,11 +1,12 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { AlertTriangle, GitMerge } from 'lucide-react'
+import { AlertTriangle, GitMerge, Loader2, Sparkles } from 'lucide-react'
 import { api } from '@/lib/api'
 import { outcomeActions, reportOutcome } from '@/lib/gitOps'
 import { notifyError } from '@/lib/notify'
 import { useEpoch } from '@/stores/repoEpoch'
 import { confirm } from '@/stores/dialogs'
 import { Button } from '@/components/ui/button'
+import { aiResolveConflicts, useAiResolveOp } from '../merge/aiResolve'
 import { editMessage } from '../rewrite/MessageDialog'
 
 export function useOperationState(root: string) {
@@ -26,6 +27,7 @@ export function useOperationState(root: string) {
  */
 export function OperationBanner({ root }: { root: string }) {
   const q = useOperationState(root)
+  const aiOp = useAiResolveOp(root)
   const st = q.data
   if (!st || (!st.operation && st.conflicted.length === 0)) return null
 
@@ -85,8 +87,20 @@ export function OperationBanner({ root }: { root: string }) {
             Resolve Conflicts…
           </Button>
         )}
+        {(n > 0 || aiOp) && (
+          <Button
+            size="sm"
+            variant="secondary"
+            title={aiOp ? 'Cancel' : 'Same as Auto Merge: Markdown keeps both sides, other files are resolved by the AI tool from Settings'}
+            onClick={() => void aiResolveConflicts(root)}
+            data-testid="banner-ai-resolve"
+          >
+            {aiOp ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
+            {aiOp ? 'Cancel AI Resolve' : 'Resolve with AI'}
+          </Button>
+        )}
         {st.operation && st.operation !== 'bisect' && (
-          <Button size="sm" variant={n > 0 ? 'secondary' : 'default'} disabled={n > 0} onClick={() => void doContinue()} data-testid="banner-continue">
+          <Button size="sm" variant={n > 0 ? 'secondary' : 'default'} disabled={n > 0 || !!aiOp} onClick={() => void doContinue()} data-testid="banner-continue">
             Continue
           </Button>
         )}
