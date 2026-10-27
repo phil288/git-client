@@ -151,7 +151,8 @@ export const api = {
     lock: (root: string, path: string, reason: string | null) => call('worktree:lock', root, path, reason),
     unlock: (root: string, path: string) => call('worktree:unlock', root, path),
     prune: (root: string) => call('worktree:prune', root),
-    mergeInto: (root: string, source: string, target: string, mode: MergeMode) => call('worktree:mergeInto', root, source, target, mode)
+    mergeInto: (root: string, source: string, target: string, mode: MergeMode) => call('worktree:mergeInto', root, source, target, mode),
+    autoMerge: (root: string, opId: string, path: string) => call('worktree:autoMerge', root, opId, path)
   },
   conflicts: {
     state: (root: string) => call('conflicts:state', root),

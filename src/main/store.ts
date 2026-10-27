@@ -108,7 +108,9 @@ const schema: Schema<PersistedState> = {
         additionalProperties: false,
         properties: Object.fromEntries(AI_TOOLS.map((id) => [id, { type: 'string', pattern: AI_MODEL_PATTERN }]))
       },
-      aiCommitInstructions: { type: 'string', maxLength: AI_INSTRUCTIONS_MAX }
+      aiCommitInstructions: { type: 'string', maxLength: AI_INSTRUCTIONS_MAX },
+      aiMergeTool: { enum: ['same', 'auto', 'claude', 'codex', 'copilot', 'cursor', 'gemini'] },
+      aiMergeInstructions: { type: 'string', maxLength: AI_INSTRUCTIONS_MAX }
     }
   }
 }

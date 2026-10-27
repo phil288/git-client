@@ -22,6 +22,8 @@ export type Modal =
   | { kind: 'addWorktree'; root: string; start?: string }
   | { kind: 'removeWorktree'; root: string; worktree: WorktreeEntry }
   | { kind: 'mergeWorktree'; root: string; worktree: WorktreeEntry }
+  /** Starts the one-click Auto Merge as soon as it opens. */
+  | { kind: 'autoMerge'; root: string; worktree: WorktreeEntry }
   | { kind: 'conflicts'; root: string }
   | { kind: 'mergeEditor'; root: string; path: string }
   | { kind: 'settings' }

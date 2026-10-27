@@ -13,13 +13,13 @@ const key = (p: string) => (api.platform() === 'win32' ? p.replace(/\//g, '\\').
 export const samePath = (a: string, b: string): boolean => key(a) === key(b)
 
 /** The main worktree of `root`'s repository: survives any linked-worktree removal, so later calls run there. */
-async function mainWorktree(root: string): Promise<string> {
+export async function mainWorktree(root: string): Promise<string> {
   const list = await api.worktree.list(root)
   return list.find((w) => w.isMain && !w.bare)?.path ?? list.find((w) => !w.prunable && !w.bare)?.path ?? root
 }
 
 /** Closes tabs showing a removed worktree; if the active one was closed, opens `fallback` in its place. */
-function closeTabsFor(path: string, fallback: string): void {
+export function closeTabsFor(path: string, fallback: string): void {
   const s = useTabsStore.getState()
   const hits = s.tabs.filter((t) => samePath(t.path, path))
   const wasActive = hits.some((t) => t.id === s.activeId)

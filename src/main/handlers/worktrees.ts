@@ -1,8 +1,13 @@
 import type { MergeMode, WorktreeForce } from '@shared/types'
+import { autoMergePercent } from '@shared/autoMerge'
+import { detectTools } from '../ai/detect'
+import { autoMergeWorktree } from '../autoMerge'
 import type { MainContext } from '../context'
 import { AppError } from '../git/errors'
 import * as wt from '../git/worktrees'
 import { assert } from '../ipcRegistry'
+import { latestProgress } from '../operations'
+import { getPrefs, updatePrefs } from './branches'
 
 const MERGE_MODES: MergeMode[] = ['default', 'no-ff', 'ff-only']
 
@@ -65,6 +70,42 @@ export function registerWorktreeHandlers(ctx: MainContext): void {
         return res
       },
       () => [mergedIn]
+    )
+  })
+  handle('worktree:autoMerge', (_e, r0, opId, p0) => {
+    const r = root(r0)
+    const id = str(opId, 'opId')
+    const path = str(p0, 'path')
+    const touched = new Set<string>([path])
+    return mutate(
+      r,
+      () =>
+        ctx.ops.run(id, 'Auto merge', true, async (op) => {
+          const p = latestProgress(op)
+          try {
+            const res = await autoMergeWorktree(
+              {
+                runner,
+                settings: ctx.settings,
+                detectTools: () => detectTools(),
+                recentMessages: (wtRoot) => getPrefs(ctx, wtRoot).recentMessages,
+                onCommitted: (wtRoot, msg) => {
+                  const recent = getPrefs(ctx, wtRoot).recentMessages.filter((m) => m !== msg)
+                  updatePrefs(ctx, wtRoot, { recentMessages: [msg, ...recent].slice(0, 20) })
+                }
+              },
+              r,
+              path,
+              { signal: op.signal, progress: (n, m) => p.progress(m, autoMergePercent(n)) }
+            )
+            if (res.status === 'done' && res.mergedIn) touched.add(res.mergedIn)
+            if (res.status !== 'done') touched.add(res.host)
+            return res
+          } finally {
+            p.dispose()
+          }
+        }),
+      () => [...touched]
     )
   })
 }

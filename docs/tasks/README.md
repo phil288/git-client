@@ -50,3 +50,4 @@ Decision records per task (not a changelog). Copy [`_TEMPLATE.md`](_TEMPLATE.md)
 | 2026-10-21 | [Open a terminal in the current repository](2026-10-21-open-terminal-in-repo.md) | done |
 | 2026-10-21 | [install.sh reinstalls local builds of the same version](2026-10-21-install-local-reinstall.md) | done |
 | 2026-10-22 | [Editable prompt for AI commit messages](2026-10-22-ai-commit-prompt.md) | done |
+| 2026-10-27 | [One-click worktree Auto Merge](2026-10-27-worktree-auto-merge.md) | done |

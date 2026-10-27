@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { AI_INSTRUCTIONS_MAX, defaultCommitInstructions, isValidAiModel, resolveAiTool } from '@shared/aiTool'
+import { AI_INSTRUCTIONS_MAX, defaultCommitInstructions, defaultMergeInstructions, isValidAiModel, resolveAiTool } from '@shared/aiTool'
 import { AI_TOOLS, AI_TOOL_LABEL, type AiTool, type Settings } from '@shared/types'
 import { api } from '@/lib/api'
 import { notifyError, run } from '@/lib/notify'
@@ -58,8 +58,20 @@ function AiModelInput({ value, onSave }: { value: string; onSave: (model: string
   )
 }
 
-/** Instruction block of the commit-message prompt; '' = built-in (picks Conventional Commits or imperative per repository). */
-function AiInstructionsInput({ value, onSave }: { value: string; onSave: (text: string) => void }) {
+/** Instruction block of an AI prompt; '' = built-in. `testId` prefixes the test ids (commit prompt: "ai-instructions"). */
+function AiInstructionsInput({
+  value,
+  onSave,
+  placeholder,
+  defaultText,
+  testId
+}: {
+  value: string
+  onSave: (text: string) => void
+  placeholder: string
+  defaultText: () => string
+  testId: string
+}) {
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-1">
       <textarea
@@ -67,16 +79,16 @@ function AiInstructionsInput({ value, onSave }: { value: string; onSave: (text: 
         rows={value ? 9 : 3}
         maxLength={AI_INSTRUCTIONS_MAX}
         spellCheck={false}
-        placeholder="Built-in instructions (Conventional Commits or imperative subject, matching the repository)"
+        placeholder={placeholder}
         className="w-full resize-y rounded-md border border-border-strong bg-bg px-2 py-1 font-mono text-xs"
         onChange={(e) => onSave(e.target.value)}
-        data-testid="ai-instructions-input"
+        data-testid={`${testId}-input`}
       />
       <div className="flex gap-2">
-        <Button size="sm" variant="ghost" disabled={value !== ''} onClick={() => onSave(defaultCommitInstructions('adaptive'))} data-testid="ai-instructions-default">
+        <Button size="sm" variant="ghost" disabled={value !== ''} onClick={() => onSave(defaultText())} data-testid={`${testId}-default`}>
           Start from default
         </Button>
-        <Button size="sm" variant="ghost" disabled={value === ''} onClick={() => onSave('')} data-testid="ai-instructions-reset">
+        <Button size="sm" variant="ghost" disabled={value === ''} onClick={() => onSave('')} data-testid={`${testId}-reset`}>
           Reset to built-in
         </Button>
       </div>
@@ -100,6 +112,9 @@ export function SettingsDialog() {
   const aiPath = s.aiCommitTool === 'auto' ? aiTools.data?.find((t) => t.path)?.path : aiTools.data?.find((t) => t.id === s.aiCommitTool)?.path
   // The model field edits the tool that would actually run (auto resolves to the first installed one).
   const aiModelTool: AiTool | null = s.aiCommitTool === 'auto' ? (aiTools.data ? (resolveAiTool('auto', aiTools.data)?.id ?? null) : null) : s.aiCommitTool
+
+  const mergeSetting = s.aiMergeTool === 'same' ? s.aiCommitTool : s.aiMergeTool
+  const aiMergeModelTool: AiTool | null = mergeSetting === 'auto' ? (aiTools.data ? (resolveAiTool('auto', aiTools.data)?.id ?? null) : null) : mergeSetting
 
   const aiHelp = 'Prompt is sent to the CLI on stdin; the CLI runs in read-only mode in the repository folder.'
 
@@ -223,7 +238,43 @@ export function SettingsDialog() {
             label="AI commit prompt"
             help="Instructions sent before the repository data (recent subjects, amend context, changed files, diff), which is always appended."
           >
-            <AiInstructionsInput value={s.aiCommitInstructions} onSave={(text) => set('aiCommitInstructions', text)} />
+            <AiInstructionsInput
+              value={s.aiCommitInstructions}
+              onSave={(text) => set('aiCommitInstructions', text)}
+              placeholder="Built-in instructions (Conventional Commits or imperative subject, matching the repository)"
+              defaultText={() => defaultCommitInstructions('adaptive')}
+              testId="ai-instructions"
+            />
+          </Row>
+          <Row label="AI conflict resolution" help="Auto Merge sends each conflicted non-Markdown file to this CLI (read-only); Markdown conflicts keep both sides.">
+            <select className={select} value={s.aiMergeTool} onChange={(e) => set('aiMergeTool', e.target.value as Settings['aiMergeTool'])} data-testid="ai-merge-tool-select">
+              <option value="same">Same as commit messages</option>
+              <option value="auto">Auto-detect (first installed)</option>
+              {AI_TOOLS.map((id) => (
+                <option key={id} value={id}>
+                  {AI_TOOL_LABEL[id]}
+                  {aiTools.data && aiTools.data.find((t) => t.id === id)?.path === null ? ' (not installed)' : ''}
+                </option>
+              ))}
+            </select>
+          </Row>
+          {aiMergeModelTool && aiMergeModelTool !== aiModelTool && (
+            <Row label={`${AI_TOOL_LABEL[aiMergeModelTool]} model`} help="Passed as --model; empty: the CLI's default. Remembered per tool.">
+              <AiModelInput
+                key={aiMergeModelTool}
+                value={s.aiModels[aiMergeModelTool] ?? ''}
+                onSave={(model) => set('aiModels', { ...s.aiModels, [aiMergeModelTool]: model })}
+              />
+            </Row>
+          )}
+          <Row label="AI conflict prompt" help="Instructions sent before the file with conflict markers and both branches' recent commits, which are always appended.">
+            <AiInstructionsInput
+              value={s.aiMergeInstructions}
+              onSave={(text) => set('aiMergeInstructions', text)}
+              placeholder="Built-in instructions (keep both sides' intent, output only the resolved file)"
+              defaultText={defaultMergeInstructions}
+              testId="ai-merge-instructions"
+            />
           </Row>
           <Row label="Editor command" help="Used by “Open in Editor”; the path is appended">
             <Input value={s.editorCommand} onChange={(e) => set('editorCommand', e.target.value)} placeholder="code" />

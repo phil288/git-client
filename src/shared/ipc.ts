@@ -1,5 +1,6 @@
 import type {
   AiCommitResult,
+  AutoMergeResult,
   AiToolInfo,
   AppInfo,
   CommitDetails,
@@ -255,6 +256,8 @@ export interface IpcInvokeMap {
   'worktree:unlock': [[root: string, path: string], void]
   'worktree:prune': [[root: string], void]
   'worktree:mergeInto': [[root: string, source: string, target: string, mode: MergeMode], WorktreeMergeResult]
+  /** One click: commit everything (AI message), merge into the default branch, resolve conflicts, remove worktree + branch. */
+  'worktree:autoMerge': [[root: string, opId: string, path: string], AutoMergeResult]
 
   // M8 — conflicts
   'conflicts:state': [[root: string], ConflictState]
@@ -443,6 +446,7 @@ const invokeChannelRecord = {
   'worktree:unlock': true,
   'worktree:prune': true,
   'worktree:mergeInto': true,
+  'worktree:autoMerge': true,
   'conflicts:state': true,
   'conflicts:versions': true,
   'conflicts:acceptSide': true,

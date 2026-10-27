@@ -29,7 +29,8 @@ of its own is the release update check, which can be turned off).
 - **3-way merge tool** — conflicts dialog with correct Yours/Theirs labels for merge, rebase and
   cherry-pick, auto-resolve, per-chunk accept/remove, editable result, merge preview, rerere.
 - **Stash, file history, blame, tags, remotes and worktrees** — including creating, locking,
-  pruning and merging Git worktrees.
+  pruning and merging Git worktrees, plus one-click Auto Merge (commit, merge into main,
+  AI conflict resolution, cleanup).
 - **Desktop integration** — tabs for several repositories, quick switcher (`Ctrl+E`), "Open in
   GitClient" in Explorer/Nautilus, `gitclient .` from the terminal, auto-fetch, update check (one-click update on Windows).
 - **Transparent** — the Git Console (`Alt+9`) shows every git command it runs, with duration and
@@ -154,7 +155,7 @@ Publishing a release and testing the install one-liners: [docs/RELEASING.md](doc
 | 8 | Conflicts: banner, conflicts dialog with correct Yours/Theirs, auto-resolve, 3-way merge editor, special types, merge-tree preview, rerere | done |
 | 9 | Settings, auto-fetch, jump list, Explorer/Nautilus entries, error handling, 100k-commit performance | done |
 | 10 | CI + release workflows, stable assets + SHA256SUMS, install.sh, install.ps1, update check | done |
-| — | Worktrees: list, create (new/existing branch), open in tab, lock/unlock, prune, remove (`-f -f` force), merge into main with worktree + branch cleanup | done |
+| — | Worktrees: list, create (new/existing branch), open in tab, lock/unlock, prune, remove (`-f -f` force), merge into main with worktree + branch cleanup, one-click Auto Merge (AI commit, Markdown keep-both / AI conflict resolution, remove worktree + branch) | done |
 
 ## FAQ
 

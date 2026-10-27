@@ -1,5 +1,5 @@
 import { toast } from 'sonner'
-import { AlertTriangle, CheckCircle2, ExternalLink, FolderOpen, FolderTree, GitMerge, Lock, LockOpen, Plus, RefreshCw, Terminal, Trash2 } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ExternalLink, FolderOpen, FolderTree, GitMerge, Lock, LockOpen, Plus, RefreshCw, Terminal, Trash2, Zap } from 'lucide-react'
 import type { PendingMerge, WorktreeEntry } from '@shared/types'
 import { api } from '@/lib/api'
 import { refreshRepo, reportOutcome } from '@/lib/gitOps'
@@ -108,12 +108,22 @@ function useActions(root: string, w: WorktreeEntry, def: string | null | undefin
   const nothing = useNothingToMerge(root, w, def)
   return {
     nothing,
+    autoMerge: autoMergeAction(root, w, def, pending),
     open: () => void openRepoPath(w.path, 'new-tab'),
     merge: canMerge ? () => openModal({ kind: 'mergeWorktree', root, worktree: w }) : null,
     remove: w.isMain || pending ? null : w.prunable ? () => pruneFlow(root, 1) : () => openModal({ kind: 'removeWorktree', root, worktree: w }),
     lock: w.isMain || w.prunable ? null : () => lockFlow(root, w),
     resolve: pending ? () => openModal({ kind: 'conflicts', root: pending.path }) : null
   }
+}
+
+const autoMergeTitle = (branch: string | null, def: string | null | undefined) =>
+  `Commit everything (AI message), merge ${branch ?? ''} into ${def ?? 'the default branch'}, resolve conflicts (Markdown: keep both, others: AI), then remove the worktree and branch`
+
+/** One-click Auto Merge; null when it cannot run (main worktree, detached, locked, missing, merge already open). */
+function autoMergeAction(root: string, w: WorktreeEntry, def: string | null | undefined, pending: PendingMerge | undefined) {
+  if (w.isMain || w.bare || !w.branch || w.prunable || w.locked || pending || !def || w.branch === def) return null
+  return () => openModal({ kind: 'autoMerge', root, worktree: w })
 }
 
 function WorktreeRow({ root, w, def, pending }: { root: string; w: WorktreeEntry; def: string | null | undefined; pending: PendingMerge | undefined }) {
@@ -168,6 +178,11 @@ function WorktreeRow({ root, w, def, pending }: { root: string; w: WorktreeEntry
                 <AlertTriangle /> Resolve…
               </Button>
             )}
+            {a.autoMerge && (
+              <Button size="sm" variant="ghost" title={autoMergeTitle(w.branch, def)} onClick={a.autoMerge} data-testid="wt-auto-merge">
+                <Zap /> Auto Merge
+              </Button>
+            )}
             {a.merge && !a.nothing && (
               <Button size="sm" variant="ghost" title={`Merge ${w.branch} into ${def ?? 'another branch'}…`} onClick={a.merge} data-testid="wt-merge">
                 <GitMerge /> Merge into {def ?? '…'}
@@ -189,6 +204,7 @@ function WorktreeRow({ root, w, def, pending }: { root: string; w: WorktreeEntry
       <ContextMenuContent>
         {!w.prunable && <ContextMenuItem onSelect={a.open}>Open in New Tab</ContextMenuItem>}
         {a.merge && <ContextMenuItem onSelect={a.merge}>Merge ‘{w.branch}’ into {def ?? '…'}…</ContextMenuItem>}
+        {a.autoMerge && <ContextMenuItem onSelect={a.autoMerge}>Auto Merge into {def} and Remove</ContextMenuItem>}
         {!w.prunable && (
           <>
             <ContextMenuSeparator />
@@ -247,6 +263,7 @@ export function LinkedWorktreeBar({ root }: { root: string }) {
     )
   }
   const canMerge = !!w.branch && w.branch !== def
+  const autoMerge = autoMergeAction(root, w, def, pending)
   return (
     <div className="flex items-center gap-2 border-b border-border-strong bg-panel px-3 py-1 text-xs" data-testid="linked-worktree-bar">
       <FolderTree className="size-3.5 text-muted" />
@@ -270,6 +287,11 @@ export function LinkedWorktreeBar({ root }: { root: string }) {
             ? `Nothing committed to merge into ${def} · ${nothing.dirty} uncommitted change${nothing.dirty === 1 ? '' : 's'}`
             : `Nothing to merge: ${def} already has every commit`}
         </span>
+      )}
+      {autoMerge && (
+        <Button size="sm" title={autoMergeTitle(w.branch, def)} onClick={autoMerge} data-testid="bar-auto-merge">
+          <Zap /> Auto Merge
+        </Button>
       )}
       {canMerge && (
         <Button size="sm" variant={nothing ? 'ghost' : 'secondary'} onClick={() => openModal({ kind: 'mergeWorktree', root, worktree: w })} data-testid="bar-merge">

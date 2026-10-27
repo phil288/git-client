@@ -59,3 +59,26 @@ export class OperationManager extends EventEmitter<{ progress: [ProgressEvent] }
     for (const op of this.running.values()) op.controller.abort()
   }
 }
+
+/**
+ * OperationManager drops progress calls < 50 ms apart, but the last of a quick
+ * burst ("Asking…" right after "Reading…") is the one that should stay on screen:
+ * defer it instead. Call dispose() when the operation ends.
+ */
+export function latestProgress(op: OperationHandle): { progress(message: string, percent: number | null): void; dispose(): void } {
+  let last = 0
+  let timer: NodeJS.Timeout | undefined
+  return {
+    progress(message, percent) {
+      clearTimeout(timer)
+      const wait = last + 60 - Date.now()
+      const emit = (): void => {
+        last = Date.now()
+        op.progress(message, percent)
+      }
+      if (wait > 0) timer = setTimeout(emit, wait)
+      else emit()
+    },
+    dispose: () => clearTimeout(timer)
+  }
+}

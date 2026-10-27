@@ -1,9 +1,9 @@
-import { AI_TOOLS, type AiTool } from '@shared/types'
 import type { MainContext } from '../context'
 import { generateCommitMessage } from '../ai/commitMessage'
 import { detectTools } from '../ai/detect'
-import { AppError } from '../git/errors'
+import { pickTool } from '../ai/pickTool'
 import { assert } from '../ipcRegistry'
+import { latestProgress } from '../operations'
 import { getPrefs } from './branches'
 
 export function registerAiHandlers(ctx: MainContext): void {
@@ -19,43 +19,20 @@ export function registerAiHandlers(ctx: MainContext): void {
     const amend = assert.boolean((o as { amend?: unknown } | null)?.amend, 'amend')
 
     const { aiCommitTool: setting, aiModels, aiCommitInstructions } = ctx.settings()
-    const tools = detectTools()
-    let tool: { id: AiTool; path: string }
-    if (setting === 'auto' || !AI_TOOLS.includes(setting)) {
-      const first = tools.find((t) => t.path !== null)
-      if (first?.path) tool = { id: first.id, path: first.path }
-      else throw new AppError('No supported AI CLI found (claude, codex, copilot, cursor, gemini). Install one or choose it in Settings.', 'INVALID_ARGUMENT')
-    } else {
-      const chosen = tools.find((t) => t.id === setting)
-      if (!chosen?.path) throw new AppError(`${chosen?.label ?? setting} is not installed or not on PATH. Install it or choose another tool in Settings.`, 'INVALID_ARGUMENT')
-      tool = { id: chosen.id, path: chosen.path }
-    }
+    const tool = pickTool(setting, detectTools())
     const model = aiModels?.[tool.id]
     return ctx.ops.run(id, 'Generating commit message', true, async (op) => {
-      // OperationManager drops progress calls < 50 ms apart; "Asking…" usually follows
-      // "Reading…" faster than that and is the one that stays on screen, so defer it.
-      let last = 0
-      let timer: NodeJS.Timeout | undefined
-      const progress = (message: string): void => {
-        clearTimeout(timer)
-        const wait = last + 60 - Date.now()
-        const emit = (): void => {
-          last = Date.now()
-          op.progress(message, null)
-        }
-        if (wait > 0) timer = setTimeout(emit, wait)
-        else emit()
-      }
+      const p = latestProgress(op)
       try {
         return await generateCommitMessage(runner, root, { ...tool, model }, {
           amend,
           signal: op.signal,
           recentMessages: getPrefs(ctx, root).recentMessages,
           instructions: aiCommitInstructions,
-          onProgress: progress
+          onProgress: (m) => p.progress(m, null)
         })
       } finally {
-        clearTimeout(timer)
+        p.dispose()
       }
     })
   })

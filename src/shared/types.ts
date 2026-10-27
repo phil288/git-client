@@ -207,6 +207,10 @@ export interface Settings {
   aiModels: Partial<Record<AiTool, string>>
   /** Replaces the built-in instruction block of the commit-message prompt; '' = built-in. */
   aiCommitInstructions: string
+  /** CLI used by Auto Merge to resolve non-Markdown conflicts; 'same' = aiCommitTool. */
+  aiMergeTool: AiTool | 'auto' | 'same'
+  /** Replaces the built-in instruction block of the conflict-resolution prompt; '' = built-in. */
+  aiMergeInstructions: string
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -229,7 +233,9 @@ export const DEFAULT_SETTINGS: Settings = {
   worktreeForceRemove: false,
   aiCommitTool: 'auto',
   aiModels: {},
-  aiCommitInstructions: ''
+  aiCommitInstructions: '',
+  aiMergeTool: 'same',
+  aiMergeInstructions: ''
 }
 
 // ---------------------------------------------------------------------------
@@ -675,6 +681,35 @@ export interface MergeIntoResult {
 }
 
 export type WorktreeMergeResult = MergeIntoResult
+
+/**
+ * Outcome of the one-click worktree Auto Merge (commit → merge into the default
+ * branch → resolve conflicts → commit merge → remove worktree + branch).
+ * Failures before the merge starts are thrown instead.
+ */
+export type AutoMergeResult =
+  | {
+      status: 'done'
+      /** Branch merged into (the default branch). */
+      target: string
+      /** Worktree the merge ran in; null when fast-forwarded by ref update or nothing was merged. */
+      mergedIn: string | null
+      /** Hash of the commit made from the worktree's uncommitted changes; null = it was clean. */
+      committed: string | null
+      merged: number
+      /** Markdown conflicts resolved by keeping both sides. */
+      unionResolved: string[]
+      /** Conflicts resolved by the AI CLI (worth a review). */
+      aiResolved: string[]
+      worktreeRemoved: boolean
+      branchDeleted: boolean
+      /** Cleanup problem after a successful merge. */
+      warning?: string
+    }
+  /** The target's worktree has local changes or an operation in progress: nothing was merged. */
+  | { status: 'blocked'; target: string; host: string; dirty: string[]; committed: string | null }
+  /** The merge is open in `host` with conflicts left for the user. */
+  | { status: 'stopped'; target: string; host: string; message: string; unresolved: string[]; unionResolved: string[]; aiResolved: string[]; committed: string | null }
 
 /** Preflight of merging a revision into a local branch. */
 export interface MergePlan {

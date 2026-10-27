@@ -1,4 +1,4 @@
-import type { MergeRegion } from './merge3'
+import { merge3, type MergeRegion } from './merge3'
 
 /**
  * State of the 3-way merge editor, independent of Monaco.
@@ -202,4 +202,15 @@ export function mapLine(list: readonly Anchor[], from: 0 | 1 | 2, to: 0 | 1 | 2,
     prev = a
   }
   return prev[to] + (line - prev[from])
+}
+
+/**
+ * "Accept both" for a whole file: every conflict chunk gets Yours then Theirs
+ * (the merge editor's bothLR), non-conflicting changes are applied as usual.
+ * With no base (add/add) the whole file is one conflict: Yours followed by Theirs.
+ */
+export function unionMerge(base: readonly string[], ours: readonly string[], theirs: readonly string[]): string[] {
+  const regions = merge3(base, ours, theirs)
+  const chunks = buildChunks(regions).map((c) => (c.kind === 'conflict' ? applyAction(c, 'bothLR') : c))
+  return layoutResult(regions, chunks).lines
 }

@@ -15,6 +15,7 @@ import { UpdateDialog } from '../settings/UpdateDialog'
 import { RemoteDialog } from '../remotes/RemoteDialog'
 import { NewTagDialog, StashCreateDialog } from '../stash/M7Dialogs'
 import { FixupTargetDialog, InteractiveRebaseDialog, ReflogDialog, ResetDialog } from '../rewrite/RewriteDialogs'
+import { AutoMergeDialog } from '../worktrees/AutoMergeDialog'
 import { AddWorktreeDialog, MergeWorktreeDialog, RemoveWorktreeDialog } from '../worktrees/WorktreeDialogs'
 
 /** Renders the current parametrised dialog (see stores/modals). */
@@ -56,6 +57,8 @@ export function ModalHost() {
       return <RemoveWorktreeDialog {...m} />
     case 'mergeWorktree':
       return <MergeWorktreeDialog {...m} />
+    case 'autoMerge':
+      return <AutoMergeDialog {...m} />
     case 'conflicts':
       return <ConflictsDialog {...m} />
     case 'mergeEditor':
