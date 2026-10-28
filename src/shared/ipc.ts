@@ -2,6 +2,7 @@ import type {
   AiCommitResult,
   AiResolveResult,
   AutoMergeResult,
+  AutoRebaseResult,
   AiToolInfo,
   AppInfo,
   CommitDetails,
@@ -166,6 +167,8 @@ export interface IpcInvokeMap {
   'branch:mergeInto': [[root: string, source: string, target: string, mode: MergeMode], MergeIntoResult]
   'branch:mergePlan': [[root: string, source: string, target: string], MergePlan]
   'branch:rebase': [[root: string, onto: string, branch: string | null], OpOutcome]
+  /** Rebase that resolves each step's conflicts like conflicts:aiResolve and continues; onto null = resume the open rebase. */
+  'branch:autoRebase': [[root: string, opId: string, onto: string | null, branch: string | null], AutoRebaseResult]
   'branch:compare': [[root: string, a: string, b: string], CompareResult]
   'branch:recent': [[root: string], string[]]
   'remote:list': [[root: string], Remote[]]
@@ -379,6 +382,7 @@ const invokeChannelRecord = {
   'branch:mergeInto': true,
   'branch:mergePlan': true,
   'branch:rebase': true,
+  'branch:autoRebase': true,
   'branch:compare': true,
   'branch:recent': true,
   'remote:list': true,

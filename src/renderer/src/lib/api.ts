@@ -67,6 +67,7 @@ export const api = {
     mergeInto: (root: string, source: string, target: string, mode: MergeMode) => call('branch:mergeInto', root, source, target, mode),
     mergePlan: (root: string, source: string, target: string) => call('branch:mergePlan', root, source, target),
     rebase: (root: string, onto: string, branch: string | null) => call('branch:rebase', root, onto, branch),
+    autoRebase: (root: string, opId: string, onto: string | null, branch: string | null) => call('branch:autoRebase', root, opId, onto, branch),
     compare: (root: string, a: string, b: string) => call('branch:compare', root, a, b),
     recent: (root: string) => call('branch:recent', root)
   },

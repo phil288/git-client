@@ -1,12 +1,12 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { AlertTriangle, GitMerge, Loader2, Sparkles } from 'lucide-react'
+import { AlertTriangle, GitMerge, Loader2, Sparkles, WandSparkles } from 'lucide-react'
 import { api } from '@/lib/api'
 import { outcomeActions, reportOutcome } from '@/lib/gitOps'
 import { notifyError } from '@/lib/notify'
 import { useEpoch } from '@/stores/repoEpoch'
 import { confirm } from '@/stores/dialogs'
 import { Button } from '@/components/ui/button'
-import { aiResolveConflicts, useAiResolveOp } from '../merge/aiResolve'
+import { aiResolveConflicts, autoRebaseFlow, useAiResolveOp, useAiRunKind } from '../merge/aiResolve'
 import { editMessage } from '../rewrite/MessageDialog'
 
 export function useOperationState(root: string) {
@@ -28,6 +28,7 @@ export function useOperationState(root: string) {
 export function OperationBanner({ root }: { root: string }) {
   const q = useOperationState(root)
   const aiOp = useAiResolveOp(root)
+  const aiKind = useAiRunKind(root)
   const st = q.data
   if (!st || (!st.operation && st.conflicted.length === 0)) return null
 
@@ -87,7 +88,7 @@ export function OperationBanner({ root }: { root: string }) {
             Resolve Conflicts…
           </Button>
         )}
-        {(n > 0 || aiOp) && (
+        {((n > 0 && !aiOp) || aiKind === 'resolve') && (
           <Button
             size="sm"
             variant="secondary"
@@ -99,6 +100,18 @@ export function OperationBanner({ root }: { root: string }) {
             {aiOp ? 'Cancel AI Resolve' : 'Resolve with AI'}
           </Button>
         )}
+        {((st.operation === 'rebase' && !aiOp) || aiKind === 'rebase') && (
+          <Button
+            size="sm"
+            variant="secondary"
+            title={aiOp ? 'Cancel' : 'Resolve every step’s conflicts like Resolve with AI and continue until the rebase is done; stops on anything it cannot resolve'}
+            onClick={() => void autoRebaseFlow(root, null, null)}
+            data-testid="banner-auto-rebase"
+          >
+            {aiOp ? <Loader2 className="size-3.5 animate-spin" /> : <WandSparkles className="size-3.5" />}
+            {aiOp ? 'Cancel Auto Rebase' : 'Auto Rebase'}
+          </Button>
+        )}
         {st.operation && st.operation !== 'bisect' && (
           <Button size="sm" variant={n > 0 ? 'secondary' : 'default'} disabled={n > 0 || !!aiOp} onClick={() => void doContinue()} data-testid="banner-continue">
             Continue
@@ -108,6 +121,7 @@ export function OperationBanner({ root }: { root: string }) {
           <Button
             size="sm"
             variant="secondary"
+            disabled={!!aiOp}
             onClick={async () => {
               try {
                 reportOutcome(root, await api.op.skip(root))
@@ -119,7 +133,7 @@ export function OperationBanner({ root }: { root: string }) {
             Skip
           </Button>
         )}
-        <Button size="sm" variant="secondary" onClick={() => void doAbort()} data-testid="banner-abort">
+        <Button size="sm" variant="secondary" disabled={!!aiOp} onClick={() => void doAbort()} data-testid="banner-abort">
           Abort
         </Button>
       </div>

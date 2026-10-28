@@ -4,6 +4,7 @@ import { checkoutFlow, deleteBranchFlow, deleteRemoteBranchFlow, fetchFlow, pull
 import { run } from '@/lib/notify'
 import { showRemotes } from '@/lib/views'
 import { openModal } from '@/stores/modals'
+import { autoRebaseFlow } from '../merge/aiResolve'
 import {
   ContextMenuItem,
   ContextMenuSeparator,
@@ -35,7 +36,12 @@ export function BranchMenu({ root, r, currentBranch, favorite, onToggleFavorite 
         <ContextMenuItem onSelect={() => openModal({ kind: 'addWorktree', root, start: name })}>New Worktree from ‘{name}’…</ContextMenuItem>
       )}
       {!isCurrent && r.kind === 'local' && currentBranch && (
-        <ContextMenuItem onSelect={() => void rebaseFlow(root, currentBranch, name)}>Checkout and Rebase onto ‘{cur}’</ContextMenuItem>
+        <>
+          <ContextMenuItem onSelect={() => void rebaseFlow(root, currentBranch, name)}>Checkout and Rebase onto ‘{cur}’</ContextMenuItem>
+          <ContextMenuItem onSelect={() => void autoRebaseFlow(root, currentBranch, name, cur)} data-testid="menu-checkout-auto-rebase">
+            Checkout and Auto Rebase onto ‘{cur}’
+          </ContextMenuItem>
+        </>
       )}
       {isCurrent && (
         <>
@@ -50,6 +56,9 @@ export function BranchMenu({ root, r, currentBranch, favorite, onToggleFavorite 
           <ContextMenuSeparator />
           <ContextMenuItem onSelect={() => void rebaseFlow(root, r.name, null)}>
             Rebase ‘{cur}’ onto ‘{name}’
+          </ContextMenuItem>
+          <ContextMenuItem onSelect={() => void autoRebaseFlow(root, r.name, null, name)} data-testid="menu-auto-rebase">
+            Auto Rebase ‘{cur}’ onto ‘{name}’
           </ContextMenuItem>
           <ContextMenuItem onSelect={() => openModal({ kind: 'merge', root, source: r.name, sourceLabel: name })} data-testid="menu-merge">
             Merge ‘{name}’ into ‘{cur}’…

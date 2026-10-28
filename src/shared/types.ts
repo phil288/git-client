@@ -722,6 +722,26 @@ export type AutoMergeResult =
   /** The merge is open in `host` with conflicts left for the user. */
   | { status: 'stopped'; target: string; host: string; message: string; unresolved: string[]; unionResolved: string[]; aiResolved: string[]; committed: string | null }
 
+/**
+ * Outcome of Auto Rebase: the rebase ran step by step, each step's conflicts
+ * resolved like Resolve with AI. 'stopped' leaves the rebase open for the user.
+ */
+export interface AutoRebaseResult {
+  status: 'done' | 'stopped'
+  message: string
+  /** This call started the rebase (it wrote the backup ref, so Undo applies once done). */
+  started: boolean
+  /** Steps whose conflicts were all resolved automatically. */
+  resolvedSteps: number
+  /** Markdown conflicts resolved by keeping both sides (unique paths over all steps). */
+  unionResolved: string[]
+  /** Conflicts resolved by the AI CLI (worth a review). */
+  aiResolved: string[]
+  /** Conflicts of the step it stopped on. */
+  unresolved: string[]
+  reasons: string[]
+}
+
 /** Preflight of merging a revision into a local branch. */
 export interface MergePlan {
   /** Commits the merge would bring in (0 = nothing to merge). */

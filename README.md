@@ -21,7 +21,8 @@ of its own is the release update check, which can be turned off).
 - **Search and filters** — text, regex, hash, author, branch, date range and path filters; Go to
   hash or ref.
 - **Branches** — local/remote tree, favorites, smart checkout, create, rename, delete several at once,
-  merge, rebase, compare, fetch/pull/push, upstream tracking.
+  merge, rebase, Auto Rebase (resolves each step's conflicts like Resolve with AI and continues),
+  compare, fetch/pull/push, upstream tracking.
 - **Interactive rebase** — reword, squash, fixup, drop and reorder commits in a dialog, with backup
   refs and one-click undo; reset, revert, cherry-pick, patches and reflog.
 - **Commit tool window** — stage files or individual hunks, discard, amend, sign-off,
@@ -149,7 +150,7 @@ Publishing a release and testing the install one-liners: [docs/RELEASING.md](doc
 | 1 | Scaffold, secure IPC, GitService + git detection + console, packaging config, welcome screen, recents/pins/groups, open/init/clone/scan, tabs, repo switcher, quick switcher, session restore, single instance + CLI | done |
 | 2 | Log: paged streaming, lane graph, virtualized table, ref labels, details, Monaco diff | done |
 | 3 | Search & filters: text/regex/hash/author, branch, user, date, paths, Go to | done |
-| 4 | Branches: tree, favorites/recent, smart checkout, create/rename/delete (also several at once)/restore, merge, rebase, compare, fetch/pull/push, upstream | done |
+| 4 | Branches: tree, favorites/recent, smart checkout, create/rename/delete (also several at once)/restore, merge, rebase, auto rebase, compare, fetch/pull/push, upstream | done |
 | 5 | History rewriting: scripted `rebase -i`, backup refs + undo, reword/squash/fixup/drop/reorder, reset, revert, cherry-pick, patches, reflog, rebase-in-progress mode | done |
 | 6 | Local changes & commit: file/hunk staging, discard, amend, sign-off, commit and push | done |
 | 7 | Stash, file history, blame, tags, remotes | done |

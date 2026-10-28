@@ -1,9 +1,12 @@
 import type { MergeMode, PullMode, PushOptions, RepoPrefs } from '@shared/types'
+import { detectTools } from '../ai/detect'
+import { autoRebase } from '../autoRebase'
 import type { MainContext } from '../context'
 import * as br from '../git/branches'
 import { AppError } from '../git/errors'
 import { assertNotBeingMerged, mergePlan, mergeRefInto } from '../git/worktrees'
 import { assert } from '../ipcRegistry'
+import { latestProgress } from '../operations'
 import { pathKey } from '../paths'
 
 const MERGE_MODES: MergeMode[] = ['default', 'no-ff', 'ff-only', 'squash']
@@ -137,6 +140,25 @@ export function registerBranchHandlers(ctx: MainContext): void {
   handle('branch:rebase', (_e, r0, onto, b) => {
     const r = root(r0)
     return mutate(r, () => br.rebase(runner, r, assert.nonEmptyString(onto, 'onto'), assert.nullableString(b, 'branch') ?? undefined))
+  })
+  handle('branch:autoRebase', (_e, r0, opId, onto, b) => {
+    const r = root(r0)
+    const id = assert.nonEmptyString(opId, 'opId')
+    const o = onto === null ? null : assert.nonEmptyString(onto, 'onto')
+    const branch = assert.nullableString(b, 'branch')
+    return mutate(r, () =>
+      ctx.ops.run(id, o ? `Auto rebase onto ${o}` : 'Auto rebase', true, async (op) => {
+        const p = latestProgress(op)
+        try {
+          return await autoRebase({ runner, settings: ctx.settings, detectTools: () => detectTools() }, r, o, branch, {
+            signal: op.signal,
+            progress: (m) => p.progress(m, null)
+          })
+        } finally {
+          p.dispose()
+        }
+      })
+    )
   })
   handle('branch:compare', (_e, r0, a, b) => br.compare(runner, root(r0), assert.nonEmptyString(a, 'a'), assert.nonEmptyString(b, 'b')))
   handle('branch:recent', (_e, r0) => br.recentBranches(runner, root(r0)))
