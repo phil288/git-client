@@ -94,10 +94,10 @@ test('Refresh re-counts uncommitted changes of another worktree', async () => {
   const featRow = page.getByTestId('worktree-row').filter({ hasText: 'repo2-feat' })
   await expect(featRow.getByTestId('wt-nothing-to-merge')).toContainText('nothing to merge into main')
 
-  // Edited in that worktree: no .git change, so no watcher event; Refresh alone must pick it up.
+  // Edited in that worktree: no .git change of its own, so Refresh must pick it up. No check that the
+  // badge stays stale until then: any repo:changed of main (e.g. the app's own status rewriting
+  // .git/index) also refetches it, which made that check flaky on CI.
   writeFileSync(join(wt, 'a.txt'), 'feature\n')
-  await page.waitForTimeout(1000)
-  await expect(featRow.getByTestId('wt-nothing-to-merge')).toContainText('nothing to merge into main')
   await page.getByTestId('wt-refresh').click()
   await expect(featRow.getByTestId('wt-nothing-to-merge')).toContainText('1 uncommitted')
   await app.close()
