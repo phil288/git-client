@@ -52,43 +52,70 @@ async function finish(root: string, w: WorktreeEntry, r: Extract<AutoMergeResult
   if (r.warning) toast.warning(r.warning, { duration: 30_000 })
 }
 
+/** Runs one worktree's Auto Merge; 'running' means it is done and the queue goes on. */
+async function runOne(root: string, id: string, w: WorktreeEntry): Promise<Phase> {
+  try {
+    const r = await api.worktree.autoMerge(root, id, w.path)
+    if (r.status === 'done') {
+      await finish(root, w, r)
+      return { kind: 'running' }
+    }
+    refreshRepo(root)
+    refreshRepo(r.host)
+    return r.status === 'blocked' ? { kind: 'blocked', r } : { kind: 'stopped', r }
+  } catch (err) {
+    const e = errorInfo(err)
+    refreshRepo(root)
+    return { kind: 'error', message: e.code === 'CANCELLED' ? 'Cancelled. Anything already done (commit, open merge) was kept.' : e.message }
+  }
+}
+
 /**
- * One-click Auto Merge of a linked worktree: starts on open, shows the steps
- * from the operation's progress, and handles the two pauses — the target's
- * worktree is dirty (resumes by itself once it is clean) and conflicts the AI
- * could not resolve (hands over to the conflict tool, merge left open).
+ * One-click Auto Merge of linked worktrees, one after the other: starts on
+ * open, shows the steps from the operation's progress, and handles the two
+ * pauses — the target's worktree is dirty (resumes by itself once it is clean)
+ * and conflicts the AI could not resolve (hands over to the conflict tool,
+ * merge left open). Retry carries on with the rest of the queue.
  */
-export function AutoMergeDialog({ root, worktree: w }: { root: string; worktree: WorktreeEntry }) {
+export function AutoMergeDialog({ root, worktrees }: { root: string; worktrees: WorktreeEntry[] }) {
+  const [index, setIndex] = useState(0)
   const [opId, setOpId] = useState<string | null>(null)
   const [phase, setPhase] = useState<Phase>({ kind: 'running' })
   const progress = useOpsStore((s) => (opId ? s.last[opId] : undefined))
   const started = useRef(false)
   const runningRef = useRef(false)
+  const indexRef = useRef(0)
+  const w = worktrees[index]!
+  const total = worktrees.length
 
   const start = useCallback(async () => {
     if (runningRef.current) return
     runningRef.current = true
-    const id = newId()
-    setOpId(id)
-    setPhase({ kind: 'running' })
     try {
-      const r = await api.worktree.autoMerge(root, id, w.path)
-      if (r.status === 'done') {
-        closeModal()
-        await finish(root, w, r)
-      } else {
-        refreshRepo(root)
-        refreshRepo(r.host)
-        setPhase(r.status === 'blocked' ? { kind: 'blocked', r } : { kind: 'stopped', r })
+      // From the current worktree to the end; stop at the first one that needs the user.
+      for (let i = indexRef.current; i < worktrees.length; i++) {
+        indexRef.current = i
+        setIndex(i)
+        const id = newId()
+        setOpId(id)
+        setPhase({ kind: 'running' })
+        const next = await runOne(root, id, worktrees[i]!)
+        if (next.kind !== 'running') {
+          setPhase(next)
+          return
+        }
       }
-    } catch (err) {
-      const e = errorInfo(err)
-      refreshRepo(root)
-      setPhase({ kind: 'error', message: e.code === 'CANCELLED' ? 'Cancelled. Anything already done (commit, open merge) was kept.' : e.message })
+      closeModal()
     } finally {
       runningRef.current = false
     }
-  }, [root, w])
+  }, [root, worktrees])
+
+  /** Leave the failed worktree as it is and go on with the next one. */
+  const skip = () => {
+    indexRef.current += 1
+    void start()
+  }
 
   useEffect(() => {
     if (started.current) return
@@ -136,7 +163,14 @@ export function AutoMergeDialog({ root, worktree: w }: { root: string; worktree:
     <Dialog open onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg" data-testid="auto-merge-dialog" data-phase={phase.kind}>
         <DialogHeader>
-          <DialogTitle>Auto Merge ‘{w.branch}’</DialogTitle>
+          <DialogTitle>
+            Auto Merge ‘{w.branch}’
+            {total > 1 && (
+              <span className="ml-2 text-xs font-normal text-muted" data-testid="auto-merge-queue">
+                {index + 1} of {total}
+              </span>
+            )}
+          </DialogTitle>
           <DialogDescription className="break-all font-mono text-xs">{w.path}</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-3 text-[13px]">
@@ -188,7 +222,7 @@ export function AutoMergeDialog({ root, worktree: w }: { root: string; worktree:
               <FileList files={phase.r.unresolved} testId="auto-merge-unresolved" />
               {(phase.r.aiResolved.length > 0 || phase.r.unionResolved.length > 0) && (
                 <div className="text-xs text-muted">
-                  Already resolved and staged: {[...phase.r.unionResolved, ...phase.r.aiResolved].join(', ')}. Run Auto Merge again after resolving the rest to finish
+                  Already resolved and staged: {[...phase.r.unionResolved, ...phase.r.aiResolved].join(', ')}. Run Auto Merge{total > 1 ? ' All' : ''} again after resolving the rest to finish
                   and clean up.
                 </div>
               )}
@@ -214,6 +248,11 @@ export function AutoMergeDialog({ root, worktree: w }: { root: string; worktree:
               {phase.kind === 'blocked' && (
                 <Button variant="secondary" onClick={() => void openRepoPath(phase.r.host, 'new-tab')}>
                   Open {phase.r.target}
+                </Button>
+              )}
+              {phase.kind === 'error' && index + 1 < total && (
+                <Button variant="secondary" onClick={skip} data-testid="auto-merge-skip">
+                  Skip to next
                 </Button>
               )}
               {phase.kind === 'stopped' ? (

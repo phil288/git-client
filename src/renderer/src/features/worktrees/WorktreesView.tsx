@@ -120,10 +120,37 @@ function useActions(root: string, w: WorktreeEntry, def: string | null | undefin
 const autoMergeTitle = (branch: string | null, def: string | null | undefined) =>
   `Commit everything (AI message), merge ${branch ?? ''} into ${def ?? 'the default branch'}, resolve conflicts (Markdown: keep both, others: AI), then remove the worktree and branch`
 
-/** One-click Auto Merge; null when it cannot run (main worktree, detached, locked, missing, merge already open). */
+/** Auto Merge cannot run on the main worktree, detached, locked or missing ones, nor while a merge of the branch is open. */
+const canAutoMerge = (w: WorktreeEntry, def: string | null | undefined, pending: PendingMerge | undefined) =>
+  !w.isMain && !w.bare && !!w.branch && !w.prunable && !w.locked && !pending && !!def && w.branch !== def
+
+/** One-click Auto Merge; null when it cannot run. */
 function autoMergeAction(root: string, w: WorktreeEntry, def: string | null | undefined, pending: PendingMerge | undefined) {
-  if (w.isMain || w.bare || !w.branch || w.prunable || w.locked || pending || !def || w.branch === def) return null
-  return () => openModal({ kind: 'autoMerge', root, worktree: w })
+  if (!canAutoMerge(w, def, pending)) return null
+  return () => openModal({ kind: 'autoMerge', root, worktrees: [w] })
+}
+
+/**
+ * Auto Merge every eligible linked worktree into the default branch, one after
+ * the other. Unlike the single button it asks first: it removes many folders.
+ * A merge one of them left open (an earlier run stopped on conflicts) goes
+ * first, since Auto Merge resumes it; any other open merge would block them all.
+ */
+async function autoMergeAllFlow(root: string, list: WorktreeEntry[], def: string | null | undefined, pendingAll: PendingMerge[] | undefined) {
+  const eligible = list.filter((w) => canAutoMerge(w, def, undefined))
+  const resumable = (w: WorktreeEntry) => !!pendingMergeOf(pendingAll, w.branch)
+  if (pendingAll?.some((p) => !eligible.some((w) => w.branch && p.branches.includes(w.branch)))) {
+    toast.error('A merge is unfinished: resolve or abort it before Auto Merge All.')
+    return
+  }
+  const queue = [...eligible.filter(resumable), ...eligible.filter((w) => !resumable(w))]
+  if (queue.length === 0) return
+  const ok = await confirm({
+    title: `Auto Merge ${queue.length} worktree${queue.length === 1 ? '' : 's'} into ${def}`,
+    message: `For each of ${queue.map((w) => w.branch).join(', ')}: commit everything (AI message), merge into ${def}, resolve conflicts (Markdown: keep both, others: AI), then remove the worktree and branch. It stops at the first one that needs you.`,
+    confirmLabel: 'Auto Merge All'
+  })
+  if (ok) openModal({ kind: 'autoMerge', root, worktrees: queue })
 }
 
 function WorktreeRow({ root, w, def, pending }: { root: string; w: WorktreeEntry; def: string | null | undefined; pending: PendingMerge | undefined }) {
@@ -313,6 +340,7 @@ export function WorktreesView({ tab }: { tab: TabRef }) {
   const pendingAll = usePendingMerges(root).data
   const list = q.data ?? []
   const prunable = list.filter((w) => w.prunable).length
+  const mergeable = list.filter((w) => canAutoMerge(w, def, undefined)).length
 
   return (
     <div className="flex h-full min-h-0 flex-col" data-testid="worktrees-view">
@@ -323,6 +351,17 @@ export function WorktreesView({ tab }: { tab: TabRef }) {
         {prunable > 0 && (
           <Button size="sm" variant="ghost" onClick={() => pruneFlow(root, prunable)}>
             Prune {prunable} missing
+          </Button>
+        )}
+        {mergeable > 1 && (
+          <Button
+            size="sm"
+            variant="ghost"
+            title={`Auto Merge every linked worktree into ${def}, one after the other`}
+            onClick={() => void autoMergeAllFlow(root, list, def, pendingAll)}
+            data-testid="wt-auto-merge-all"
+          >
+            <Zap /> Auto Merge All ({mergeable})
           </Button>
         )}
         <div className="flex-1" />

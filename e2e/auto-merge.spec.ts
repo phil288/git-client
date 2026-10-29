@@ -86,3 +86,44 @@ test('Auto Merge: commits, waits for a clean main, resolves conflicts and remove
   await expect(page.getByText(/Resolved by AI \(worth a review\): app\.ts/)).toBeVisible()
   await app.close()
 })
+
+test('Auto Merge All: merges every linked worktree one after the other', async () => {
+  const repo = join(work, 'repo-all')
+  mkdirSync(repo)
+  git(repo, 'init', '-q', '-b', 'main')
+  git(repo, 'config', 'user.name', 'E2E')
+  git(repo, 'config', 'user.email', 'e2e@example.com')
+  writeFileSync(join(repo, 'notes.md'), '# Notes\n')
+  git(repo, 'add', '.')
+  git(repo, 'commit', '-q', '-m', 'first')
+  const wts = ['one', 'two'].map((name) => {
+    const wt = join(work, `repo-all-${name}`)
+    git(repo, 'worktree', 'add', '-q', '-b', name, wt)
+    writeFileSync(join(wt, 'notes.md'), `# Notes\nfrom ${name}\n`)
+    git(wt, 'commit', '-q', '-am', `${name}: notes`)
+    return wt
+  })
+  writeFileSync(join(wts[1]!, 'two.txt'), 'two\n') // left uncommitted: Auto Merge commits it
+
+  const extra = process.env.CI || process.env.E2E_NO_SANDBOX ? ['--no-sandbox'] : []
+  const app = await electron.launch({
+    args: [APP_DIR, ...extra, repo],
+    env: { ...process.env, GITCLIENT_USER_DATA: join(work, 'ud-all'), GITCLIENT_AI_CLAUDE_PATH: fakeCli, GITCLIENT_AI_NO_PATH_SEARCH: '1' } as Record<string, string>
+  })
+  const page = await app.firstWindow()
+  await page.getByTestId('log-row').first().waitFor()
+
+  await page.getByTestId('stripe-worktrees').click()
+  await expect(page.getByTestId('wt-auto-merge-all')).toContainText('(2)')
+  await page.getByTestId('wt-auto-merge-all').click()
+  await page.getByTestId('confirm-dialog').getByRole('button', { name: 'Auto Merge All' }).click()
+
+  await expect.poll(() => wts.map(existsSync), { timeout: 30_000 }).toEqual([false, false])
+  await expect(page.getByTestId('auto-merge-dialog')).toHaveCount(0)
+  expect(git(repo, 'branch', '--format=%(refname:short)').trim()).toBe('main')
+  // The second merge conflicts on notes.md with the first: Markdown keeps both.
+  expect(readFileSync(join(repo, 'notes.md'), 'utf8')).toBe('# Notes\nfrom one\nfrom two\n')
+  expect(readFileSync(join(repo, 'two.txt'), 'utf8')).toBe('two\n')
+  expect(git(repo, 'status', '--porcelain')).toBe('')
+  await app.close()
+})
