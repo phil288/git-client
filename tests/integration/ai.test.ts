@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
@@ -13,6 +13,11 @@ import { commitFile, git, initRepo, tempDir, write } from '../helpers'
 let runner: GitRunner
 // Not 'gitclient-ai-': that prefix is runTool's own temp dir, asserted to be cleaned up below.
 const root = tempDir('gitclient-aitest-')
+// Test files run in parallel and others (autoMerge) run codex too: count runTool's dirs in a temp
+// root of our own. Each file has its own process (pool: forks), so this stays local to this file.
+const privateTmp = join(root, 'tmp')
+mkdirSync(privateTmp)
+for (const v of ['TMPDIR', 'TMP', 'TEMP']) process.env[v] = privateTmp
 const aiTempDirs = () => new Set(readdirSync(tmpdir()).filter((n) => n.startsWith('gitclient-ai-')))
 const newTempDirs = (before: Set<string>) => [...aiTempDirs()].filter((n) => !before.has(n))
 const bin = join(root, 'bin')
