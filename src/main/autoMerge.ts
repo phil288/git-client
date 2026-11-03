@@ -35,7 +35,7 @@ const errMessage = (e: unknown) => (e instanceof Error ? e.message : String(e))
  *   1. commit everything in the worktree with an AI-generated message,
  *   2. stop ('blocked') when the target's worktree is not clean,
  *   3. merge (in the worktree where the target is checked out; backup ref first),
- *   4. resolve conflicts: Markdown keeps both sides, the rest goes to the AI CLI,
+ *   4. resolve conflicts: Markdown keeps both sides, lockfiles are regenerated, the rest goes to the AI CLI,
  *   5. commit the merge,
  *   6. remove the worktree (git deletes the folder) and safe-delete its branch.
  * Re-running after 'blocked' / 'stopped' continues where it stopped: a clean
@@ -112,7 +112,7 @@ export async function autoMergeWorktree(deps: AutoMergeDeps, root: string, path:
 
   let mergedIn: string | null = resumeIn?.path ?? null
   let merged = plan.ahead
-  let resolved: Pick<AiResolveResult, 'unionResolved' | 'aiResolved'> = { unionResolved: [], aiResolved: [] }
+  let resolved: Pick<AiResolveResult, 'unionResolved' | 'aiResolved' | 'regenerated'> = { unionResolved: [], aiResolved: [], regenerated: [] }
 
   if (!resumeIn && plan.ahead > 0) {
     // 3. Merge (mergeRefInto writes the backup ref in the host first).
@@ -132,11 +132,11 @@ export async function autoMergeWorktree(deps: AutoMergeDeps, root: string, path:
       theirsLabel: branch,
       aiTimeoutMs: opts.aiTimeoutMs
     })
-    const { unresolved, reasons, unionResolved, aiResolved } = res
-    resolved = { unionResolved, aiResolved }
+    const { unresolved, reasons, unionResolved, aiResolved, regenerated } = res
+    resolved = { unionResolved, aiResolved, regenerated }
     if (unresolved.length > 0) {
       const message = `The merge of ${branch} into ${target} is open in ${host}: ${unresolved.length} conflict${unresolved.length === 1 ? '' : 's'} could not be resolved automatically.\n${reasons.join('\n')}`
-      return { status: 'stopped', target, host, message, unresolved, unionResolved, aiResolved, committed }
+      return { status: 'stopped', target, host, message, unresolved, unionResolved, aiResolved, regenerated, committed }
     }
 
     // 5. Commit the merge with git's default message.

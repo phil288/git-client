@@ -42,6 +42,22 @@ const branchExists = (dir: string, b: string) => git(dir, 'branch', '--list', b)
 const mergeHead = (dir: string) => existsSync(join(dir, '.git', 'MERGE_HEAD'))
 
 describe('autoMergeWorktree', () => {
+  it('regenerates a conflicted lockfile with the package manager and finishes without asking the AI', async () => {
+    const { main, wt } = setup('lockfile')
+    const lock = (mark: string) => JSON.stringify({ name: 'x', version: '1.0.0', mark, lockfileVersion: 3, requires: true, packages: { '': { name: 'x', version: '1.0.0' } } }, null, 2) + '\n'
+    commitFile(main, 'package.json', '{\n  "name": "x",\n  "version": "1.0.0"\n}\n', 'manifest')
+    commitFile(main, 'package-lock.json', lock('base'), 'lock')
+    git(wt, 'merge', '-q', 'main')
+    commitFile(wt, 'package-lock.json', lock('feat'), 'lock on feat')
+    commitFile(main, 'package-lock.json', lock('main'), 'lock on main')
+    const cli = fakeCli('lockfile')
+    const res = await autoMergeWorktree(deps(cli), main, wt)
+    expect(res).toMatchObject({ status: 'done', regenerated: ['package-lock.json'], aiResolved: [], worktreeRemoved: true })
+    expect(JSON.parse(read(main, 'package-lock.json'))).toMatchObject({ name: 'x', lockfileVersion: 3 })
+    expect(mergeHead(main)).toBe(false)
+    expect(prompts(cli)).toHaveLength(0)
+  }, 60_000)
+
   it('commits uncommitted work with an AI message, merges, removes the worktree and deletes the branch', async () => {
     const { main, wt } = setup('happy')
     write(wt, 'src/new.ts', 'export const n = 1\n')

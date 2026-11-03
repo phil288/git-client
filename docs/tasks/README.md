@@ -56,3 +56,4 @@ Decision records per task (not a changelog). Copy [`_TEMPLATE.md`](_TEMPLATE.md)
 | 2026-10-28 | [Auto Rebase: rebase that resolves its own conflicts](2026-10-28-auto-rebase.md) | done |
 | 2026-10-29 | [Auto Merge All worktrees into main](2026-10-29-auto-merge-all-worktrees.md) | done |
 | 2026-10-29 | [Fix flaky worktree Refresh e2e on CI](2026-10-29-ci-flaky-worktree-refresh-e2e.md) | done |
+| 2026-11-03 | [Regenerate conflicted lockfiles instead of asking the AI](2026-11-03-regenerate-lockfiles-on-conflict.md) | done |

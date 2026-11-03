@@ -40,15 +40,16 @@ async function exclusive(root: string, kind: AiRunKind, fn: (opId: string) => Pr
 
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`
 
-const resolvedLines = (r: Pick<AiResolveResult, 'unionResolved' | 'aiResolved'>): string[] =>
+const resolvedLines = (r: Pick<AiResolveResult, 'unionResolved' | 'aiResolved' | 'regenerated'>): string[] =>
   [
     r.unionResolved.length ? `Markdown kept from both sides: ${r.unionResolved.join(', ')}` : '',
-    r.aiResolved.length ? `Resolved by AI (worth a review): ${r.aiResolved.join(', ')}` : ''
+    r.aiResolved.length ? `Resolved by AI (worth a review): ${r.aiResolved.join(', ')}` : '',
+    r.regenerated.length ? `Lockfiles regenerated: ${r.regenerated.join(', ')}` : ''
   ].filter(Boolean)
 
 /**
  * Runs Auto Merge's conflict step on the open operation (Markdown keeps both
- * sides, the rest goes to the AI CLI); a second call while it runs cancels it.
+ * sides, lockfiles are regenerated, the rest goes to the AI CLI); a second call while it runs cancels it.
  * Resolved files are staged; continuing the operation stays with the user.
  */
 export async function aiResolveConflicts(root: string): Promise<void> {
@@ -56,7 +57,7 @@ export async function aiResolveConflicts(root: string): Promise<void> {
     try {
       const r = await api.conflicts.aiResolve(root, opId)
       const resolved = resolvedLines(r)
-      const n = r.unionResolved.length + r.aiResolved.length
+      const n = r.unionResolved.length + r.aiResolved.length + r.regenerated.length
       if (r.unresolved.length === 0) {
         toast.success(n ? `Resolved ${plural(n, 'conflict')}` : 'No conflicts left', {
           description: resolved.join('\n') || undefined,

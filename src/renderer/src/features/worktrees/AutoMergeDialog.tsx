@@ -43,7 +43,8 @@ async function finish(root: string, w: WorktreeEntry, r: Extract<AutoMergeResult
   const what = r.merged > 0 ? `Merged ${plural(r.merged, 'commit')} of ${w.branch} into ${r.target}` : `Nothing left to merge from ${w.branch}`
   const resolved = [
     r.unionResolved.length ? `Markdown kept from both sides: ${r.unionResolved.join(', ')}` : '',
-    r.aiResolved.length ? `Resolved by AI (worth a review): ${r.aiResolved.join(', ')}` : ''
+    r.aiResolved.length ? `Resolved by AI (worth a review): ${r.aiResolved.join(', ')}` : '',
+    r.regenerated.length ? `Lockfiles regenerated: ${r.regenerated.join(', ')}` : ''
   ].filter(Boolean)
   toast.success(`${what}${r.worktreeRemoved ? '; worktree removed' : ''}${r.branchDeleted ? ` and ${w.branch} deleted` : ''}`, {
     description: resolved.join('\n') || undefined,
@@ -220,9 +221,9 @@ export function AutoMergeDialog({ root, worktrees }: { root: string; worktrees: 
                 <span className="whitespace-pre-wrap">{phase.r.message}</span>
               </div>
               <FileList files={phase.r.unresolved} testId="auto-merge-unresolved" />
-              {(phase.r.aiResolved.length > 0 || phase.r.unionResolved.length > 0) && (
+              {(phase.r.aiResolved.length > 0 || phase.r.unionResolved.length > 0 || phase.r.regenerated.length > 0) && (
                 <div className="text-xs text-muted">
-                  Already resolved and staged: {[...phase.r.unionResolved, ...phase.r.aiResolved].join(', ')}. Run Auto Merge{total > 1 ? ' All' : ''} again after resolving the rest to finish
+                  Already resolved and staged: {[...phase.r.unionResolved, ...phase.r.aiResolved, ...phase.r.regenerated].join(', ')}. Run Auto Merge{total > 1 ? ' All' : ''} again after resolving the rest to finish
                   and clean up.
                 </div>
               )}

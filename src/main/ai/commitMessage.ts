@@ -69,7 +69,7 @@ export async function gatherStagedContext(runner: GitRunner, root: string, amend
 }
 
 /** Kills the CLI and everything it started (agents spawn helpers). */
-function killTree(pid: number | undefined): void {
+export function killTree(pid: number | undefined): void {
   if (pid === undefined) return
   if (process.platform === 'win32') {
     killProcessTree(pid)

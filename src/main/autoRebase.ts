@@ -36,7 +36,8 @@ async function continueStep(runner: GitRunner, root: string): Promise<OpOutcome>
  * Rebase that resolves its own conflicts: starts `git rebase onto [branch]`
  * (backup ref first), or resumes the rebase in progress when `onto` is null,
  * then for every step that stops on conflicts runs Resolve with AI's rules
- * (Markdown keeps both sides, other text files go to the AI CLI) and continues.
+ * (Markdown keeps both sides, lockfiles are regenerated, other text files go to
+ * the AI CLI) and continues.
  * Anything it cannot resolve, a stop without conflicts (edit / exec) or a
  * cancel leaves the rebase open for the user, with the resolved files staged.
  */
@@ -54,6 +55,7 @@ export async function autoRebase(
   }
   const union = new Set<string>()
   const ai = new Set<string>()
+  const regenerated = new Set<string>()
   let resolvedSteps = 0
   const result = (status: AutoRebaseResult['status'], message: string, left: Pick<AutoRebaseResult, 'unresolved' | 'reasons'> = { unresolved: [], reasons: [] }): AutoRebaseResult => ({
     status,
@@ -62,6 +64,7 @@ export async function autoRebase(
     resolvedSteps,
     unionResolved: [...union],
     aiResolved: [...ai],
+    regenerated: [...regenerated],
     ...left
   })
 
@@ -88,6 +91,7 @@ export async function autoRebase(
       const res = await resolveConflictsAuto(deps, root, { signal: opts.signal, progress: (m) => step(`${where}: ${m}`), aiTimeoutMs: opts.aiTimeoutMs })
       for (const p of res.unionResolved) union.add(p)
       for (const p of res.aiResolved) ai.add(p)
+      for (const p of res.regenerated) regenerated.add(p)
       if (res.unresolved.length > 0) {
         const n = res.unresolved.length
         return result('stopped', `${st.title}: ${where} has ${n} conflict${n === 1 ? '' : 's'} that could not be resolved automatically.`, {
