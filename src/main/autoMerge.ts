@@ -148,6 +148,7 @@ export async function autoMergeWorktree(deps: AutoMergeDeps, root: string, path:
   // 6. Cleanup. The merge is done: problems here are warnings, never a failure.
   step(6, `Removing worktree ${w.path}…`)
   let worktreeRemoved = false
+  let worktreeRemoveDenied = false
   let branchDeleted = false
   let warning: string | undefined
   const base = host ?? plan.host ?? mainPath
@@ -156,6 +157,7 @@ export async function autoMergeWorktree(deps: AutoMergeDeps, root: string, path:
     await removeWorktree(runner, base, w.path, 0)
     worktreeRemoved = true
   } catch (e) {
+    worktreeRemoveDenied = e instanceof AppError && e.code === 'PERMISSION_DENIED'
     warning = `Merged, but the worktree was kept: ${errMessage(e)}`
   }
   if (worktreeRemoved) {
@@ -166,6 +168,6 @@ export async function autoMergeWorktree(deps: AutoMergeDeps, root: string, path:
       warning = `Merged and removed the worktree, but ${branch} was not deleted: ${errMessage(e)}`
     }
   }
-  return { status: 'done', target, mergedIn: host, committed, merged, ...resolved, worktreeRemoved, branchDeleted, warning }
+  return { status: 'done', target, mergedIn: host, committed, merged, ...resolved, worktreeRemoved, worktreeRemoveDenied, branchDeleted, warning }
 }
 

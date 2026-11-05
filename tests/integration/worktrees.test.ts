@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, rmSync } from 'node:fs'
+import { chmodSync, existsSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { locateGit } from '../../src/main/git/locate'
@@ -166,5 +166,43 @@ describe('worktrees', () => {
     expect((await wt.mergeInto(runner, p, 'feat', 'main', 'default')).outcome.status).toBe('conflicts')
     git(r, 'merge', '--abort')
     expect(await wt.pendingMerges(runner, p)).toEqual([])
+  })
+
+  // Root can delete anything, and Windows ignores the mode bits: nothing to deny there.
+  const canDeny = process.platform !== 'win32' && process.getuid?.() !== 0
+  it.skipIf(!canDeny)('maps "Permission denied" to PERMISSION_DENIED and removes after the elevated chown', async () => {
+    const r = initRepo(join(root, 'perm'))
+    commitFile(r, 'ro/a.txt', 'a\n', 'ro file')
+    const p = await wt.addWorktree(runner, r, join(root, 'perm-feat'), 'main', 'feat')
+    // A directory the user cannot write: its entries cannot be unlinked (like a tree written by root).
+    chmodSync(join(p, 'ro'), 0o555)
+    try {
+      await expect(wt.removeWorktree(runner, r, p, 0)).rejects.toMatchObject({ code: 'PERMISSION_DENIED' })
+      // git unregisters the worktree anyway and leaves the partial directory behind.
+      expect(existsSync(join(p, 'ro', 'a.txt'))).toBe(true)
+      const chowned: string[] = []
+      await wt.removeWorktreeElevated(runner, r, p, 0, async (path) => {
+        chowned.push(path)
+        chmodSync(join(path, 'ro'), 0o755)
+      })
+      expect(chowned).toEqual([p])
+      expect(existsSync(p)).toBe(false)
+      expect((await wt.listWorktrees(runner, r)).map((w) => w.path)).toEqual([r])
+    } finally {
+      if (existsSync(join(p, 'ro'))) chmodSync(join(p, 'ro'), 0o755)
+    }
+  })
+
+  it('elevated removal refuses the main worktree and paths that are not linked worktrees', async () => {
+    const r = initRepo(join(root, 'perm-guard'))
+    const chown = async (): Promise<void> => {
+      throw new Error('chown must not run')
+    }
+    await expect(wt.removeWorktreeElevated(runner, r, r, 0, chown)).rejects.toMatchObject({ code: 'INVALID_ARGUMENT' })
+    const p = await wt.addWorktree(runner, r, join(root, 'perm-guard-feat'), 'main', 'feat')
+    await wt.removeWorktree(runner, r, p, 0)
+    // Removed normally: no longer listed and never denied, so not a leftover either.
+    await expect(wt.removeWorktreeElevated(runner, r, p, 0, chown)).rejects.toMatchObject({ code: 'INVALID_ARGUMENT' })
+    await expect(wt.removeWorktreeElevated(runner, r, join(root, 'elsewhere'), 0, chown)).rejects.toMatchObject({ code: 'INVALID_ARGUMENT' })
   })
 })

@@ -12,7 +12,7 @@ import { useOpsStore } from '@/stores/ops'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ProgressBar } from '../status/ProgressBar'
-import { closeTabsFor, mainWorktree } from './worktreeFlows'
+import { closeTabsFor, mainWorktree, removeWorktreeWithSudo } from './worktreeFlows'
 
 type Blocked = Extract<AutoMergeResult, { status: 'blocked' }>
 type Stopped = Extract<AutoMergeResult, { status: 'stopped' }>
@@ -34,8 +34,9 @@ function FileList({ files, testId }: { files: string[]; testId: string }) {
   )
 }
 
-async function finish(root: string, w: WorktreeEntry, r: Extract<AutoMergeResult, { status: 'done' }>): Promise<void> {
-  const fallback = r.mergedIn ?? (await mainWorktree(root).catch(() => root))
+async function finish(root: string, w: WorktreeEntry, r0: Extract<AutoMergeResult, { status: 'done' }>): Promise<void> {
+  const fallback = r0.mergedIn ?? (await mainWorktree(root).catch(() => root))
+  const r = r0.worktreeRemoveDenied ? await cleanupWithSudo(fallback, w, r0) : r0
   if (r.mergedIn) refreshRepo(r.mergedIn)
   refreshRepo(fallback)
   if (r.worktreeRemoved) closeTabsFor(w.path, fallback)
@@ -51,6 +52,19 @@ async function finish(root: string, w: WorktreeEntry, r: Extract<AutoMergeResult
     duration: r.aiResolved.length ? 30_000 : 8_000
   })
   if (r.warning) toast.warning(r.warning, { duration: 30_000 })
+}
+
+/** The merge is done but root-owned files blocked the removal: retry it with sudo, then delete the merged branch. */
+async function cleanupWithSudo(base: string, w: WorktreeEntry, r: Extract<AutoMergeResult, { status: 'done' }>): Promise<typeof r> {
+  if (!(await removeWorktreeWithSudo(base, w.path, 0, r.warning ?? 'Permission denied'))) return r
+  if (!w.branch) return { ...r, worktreeRemoved: true, warning: undefined }
+  try {
+    // Merged into the target, so a safe delete succeeds.
+    await api.branch.delete(base, w.branch, false)
+    return { ...r, worktreeRemoved: true, branchDeleted: true, warning: undefined }
+  } catch (err) {
+    return { ...r, worktreeRemoved: true, warning: `Merged and removed the worktree, but ${w.branch} was not deleted: ${errorInfo(err).message}` }
+  }
 }
 
 /** Runs one worktree's Auto Merge; 'running' means it is done and the queue goes on. */

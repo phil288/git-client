@@ -12,8 +12,8 @@ export function DialogHost() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (pending?.kind === 'prompt') setValue(pending.options.initial ?? '')
-    setError(null)
+    if (pending?.kind === 'prompt') setValue(pending.options.password ? '' : (pending.options.initial ?? ''))
+    setError(pending?.kind === 'prompt' ? (pending.options.error ?? null) : null)
   }, [pending])
 
   if (!pending) return null
@@ -93,8 +93,18 @@ export function DialogHost() {
             submit()
           }}
         >
+          {o.message && <div className="mb-2 whitespace-pre-wrap text-[13px] text-muted">{o.message}</div>}
           {o.label && <Label>{o.label}</Label>}
-          <Input autoFocus value={value} placeholder={o.placeholder} onChange={(e) => setValue(e.target.value)} onFocus={(e) => e.target.select()} />
+          <Input
+            autoFocus
+            type={o.password ? 'password' : 'text'}
+            autoComplete={o.password ? 'off' : undefined}
+            value={value}
+            placeholder={o.placeholder}
+            onChange={(e) => setValue(e.target.value)}
+            onFocus={(e) => !o.password && e.target.select()}
+            data-testid={o.password ? 'prompt-password' : 'prompt-input'}
+          />
           {error && <div className="text-xs text-danger">{error}</div>}
           <DialogFooter>
             <Button type="button" variant="secondary" onClick={() => settle(null)}>

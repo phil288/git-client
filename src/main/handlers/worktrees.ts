@@ -2,6 +2,7 @@ import type { MergeMode, WorktreeForce } from '@shared/types'
 import { autoMergePercent } from '@shared/autoMerge'
 import { detectTools } from '../ai/detect'
 import { autoMergeWorktree } from '../autoMerge'
+import { sudoChown } from '../elevate'
 import type { MainContext } from '../context'
 import { AppError } from '../git/errors'
 import * as wt from '../git/worktrees'
@@ -45,6 +46,11 @@ export function registerWorktreeHandlers(ctx: MainContext): void {
   handle('worktree:remove', (_e, r0, path, f) => {
     const r = root(r0)
     return mutate(r, () => wt.removeWorktree(runner, r, str(path, 'path'), force(f)))
+  })
+  handle('worktree:removeElevated', (_e, r0, path, f, pw) => {
+    const r = root(r0)
+    const password = assert.nonEmptyString(pw, 'password')
+    return mutate(r, () => wt.removeWorktreeElevated(runner, r, str(path, 'path'), force(f), (p) => sudoChown(p, password)))
   })
   handle('worktree:lock', (_e, r0, path, reason) => {
     const r = root(r0)

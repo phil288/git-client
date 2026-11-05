@@ -149,6 +149,7 @@ export const api = {
     commitsToMerge: (root: string, source: string, target: string) => call('worktree:commitsToMerge', root, source, target),
     add: (root: string, path: string, start: string, newBranch: string | null) => call('worktree:add', root, path, start, newBranch),
     remove: (root: string, path: string, force: WorktreeForce) => call('worktree:remove', root, path, force),
+    removeElevated: (root: string, path: string, force: WorktreeForce, password: string) => call('worktree:removeElevated', root, path, force, password),
     lock: (root: string, path: string, reason: string | null) => call('worktree:lock', root, path, reason),
     unlock: (root: string, path: string) => call('worktree:unlock', root, path),
     prune: (root: string) => call('worktree:prune', root),

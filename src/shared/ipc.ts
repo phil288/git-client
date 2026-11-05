@@ -256,6 +256,8 @@ export interface IpcInvokeMap {
   /** newBranch null checks out `start`; returns the new worktree's normalised path. */
   'worktree:add': [[root: string, path: string, start: string, newBranch: string | null], string]
   'worktree:remove': [[root: string, path: string, force: WorktreeForce], void]
+  /** sudo chown the worktree back to the user, then a normal `git worktree remove`. Password via sudo's stdin only. */
+  'worktree:removeElevated': [[root: string, path: string, force: WorktreeForce, password: string], void]
   'worktree:lock': [[root: string, path: string, reason: string | null], void]
   'worktree:unlock': [[root: string, path: string], void]
   'worktree:prune': [[root: string], void]
@@ -449,6 +451,7 @@ const invokeChannelRecord = {
   'worktree:commitsToMerge': true,
   'worktree:add': true,
   'worktree:remove': true,
+  'worktree:removeElevated': true,
   'worktree:lock': true,
   'worktree:unlock': true,
   'worktree:prune': true,

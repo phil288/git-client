@@ -1,5 +1,6 @@
 import { basename, dirname, join } from 'node:path'
 import { existsSync } from 'node:fs'
+import { rm } from 'node:fs/promises'
 import type { MergeIntoResult, MergeMode, MergePlan, PendingMerge, WorktreeEntry, WorktreeForce, WorktreeMergeResult } from '@shared/types'
 import { normalizeRepoPath, samePath } from '../paths'
 import { createBackup } from './backup'
@@ -107,8 +108,43 @@ export async function removeWorktree(runner: GitRunner, root: string, path: stri
     const stderr = err instanceof AppError ? (err.extra.stderr ?? '') : ''
     if (/locked working tree/i.test(stderr)) throw new AppError('The worktree is locked.', 'LOCKED', err instanceof AppError ? err.extra : {})
     if (/modified or untracked files/i.test(stderr)) throw new AppError('The worktree has uncommitted or untracked changes.', 'DIRTY', err instanceof AppError ? err.extra : {})
+    if (/permission denied/i.test(stderr) && err instanceof AppError) {
+      if (target) deniedRemovals.add(target.path)
+      throw new AppError(err.message, 'PERMISSION_DENIED', err.extra)
+    }
     throw err
   }
+}
+
+/**
+ * Linked worktrees whose removal the OS denied in this process. git has
+ * already unregistered such a worktree (it drops the admin dir even when the
+ * delete fails), so this is what lets the elevated retry clean up the leftover
+ * directory without trusting an arbitrary path from the renderer.
+ */
+const deniedRemovals = new Set<string>()
+
+/**
+ * Removal after PERMISSION_DENIED: `chown` (run with sudo by the caller) gives
+ * the files back to the user, then everything runs unprivileged: a still
+ * registered worktree goes through the normal removal (git still refuses a
+ * dirty or locked one at force 0); a leftover of a denied removal is deleted
+ * and pruned. Any other path is refused.
+ */
+export async function removeWorktreeElevated(runner: GitRunner, root: string, path: string, force: WorktreeForce, chown: (path: string) => Promise<void>): Promise<void> {
+  const p = normalizeRepoPath(assertArg(path, 'path'))
+  const listed = (await listWorktrees(runner, root)).find((w) => samePath(w.path, p))
+  if (listed?.isMain || listed?.bare) throw new AppError('The main worktree cannot be removed.', 'INVALID_ARGUMENT')
+  const leftover = listed ? undefined : [...deniedRemovals].find((d) => samePath(d, p))
+  if (!listed && !leftover) throw new AppError('Not a linked worktree of this repository.', 'INVALID_ARGUMENT')
+  const target = listed?.path ?? leftover!
+  if (existsSync(target)) await chown(target)
+  if (listed && !listed.prunable) await removeWorktree(runner, root, target, force)
+  else {
+    await rm(target, { recursive: true, force: true })
+    await pruneWorktrees(runner, root)
+  }
+  deniedRemovals.delete(target)
 }
 
 export async function lockWorktree(runner: GitRunner, root: string, path: string, reason: string | null): Promise<void> {

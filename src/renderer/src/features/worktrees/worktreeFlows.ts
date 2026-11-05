@@ -5,7 +5,7 @@ import { deleteBranchFlow, refreshRepo } from '@/lib/gitOps'
 import { notifyError } from '@/lib/notify'
 import { openRepoPath } from '@/lib/repoActions'
 import { queryClient } from '@/lib/queryClient'
-import { choose } from '@/stores/dialogs'
+import { choose, prompt } from '@/stores/dialogs'
 import { openModal } from '@/stores/modals'
 import { useTabsStore } from '@/stores/tabs'
 
@@ -29,6 +29,44 @@ export function closeTabsFor(path: string, fallback: string): void {
   if (wasActive) void openRepoPath(fallback, 'new-tab')
 }
 
+const MAX_SUDO_TRIES = 3
+
+/**
+ * After git hit "Permission denied" (files owned by root, e.g. written by a
+ * container): asks for the sudo password, has main chown the worktree back to
+ * the user and remove it normally. Up to 3 tries on a wrong password.
+ * Returns true when removed; false when cancelled, unsupported or failed (already reported).
+ */
+export async function removeWorktreeWithSudo(base: string, path: string, force: WorktreeForce, cause: string): Promise<boolean> {
+  if (api.platform() === 'win32') return false
+  let error: string | undefined
+  for (let i = 0; i < MAX_SUDO_TRIES; i++) {
+    const password = await prompt({
+      title: 'Permission denied',
+      message: `${cause}\n\nSome files in “${path}” are not yours (often created by root or a container). Enter your sudo password to take ownership of the worktree (sudo chown -R) and remove it. The password is passed to sudo only and never stored.`,
+      label: 'sudo password',
+      password: true,
+      confirmLabel: 'Remove with sudo',
+      error,
+      validate: (v) => (v ? null : 'Enter the password')
+    })
+    if (password === null) return false
+    try {
+      await api.worktree.removeElevated(base, path, force, password)
+      return true
+    } catch (err) {
+      const code = err instanceof ApiError ? err.info.code : null
+      if (code !== 'AUTH_FAILED' || /not allowed/i.test(err instanceof ApiError ? err.info.message : '')) {
+        notifyError(err, 'Could not remove the worktree')
+        return false
+      }
+      error = i + 1 < MAX_SUDO_TRIES ? 'Wrong password, try again.' : undefined
+    }
+  }
+  toast.error('Could not remove the worktree: wrong sudo password.')
+  return false
+}
+
 /**
  * Removes a worktree. force 0 first; when git refuses (dirty / locked) and
  * `askForce` is set, the user can escalate to `-f -f` in one click.
@@ -46,6 +84,10 @@ export async function removeWorktreeFlow(root: string, path: string, force: Work
     await api.worktree.remove(base, path, force)
   } catch (err) {
     const code = err instanceof ApiError ? err.info.code : null
+    if (code === 'PERMISSION_DENIED' && api.platform() !== 'win32') {
+      if (!(await removeWorktreeWithSudo(base, path, force, err instanceof ApiError ? err.info.message : String(err)))) return null
+      return removed(root, path, base)
+    }
     if (!askForce || (code !== 'DIRTY' && code !== 'LOCKED')) {
       notifyError(err, 'Could not remove the worktree')
       return null
@@ -65,10 +107,15 @@ export async function removeWorktreeFlow(root: string, path: string, force: Work
     try {
       await api.worktree.remove(base, path, 2)
     } catch (e) {
-      notifyError(e, 'Could not remove the worktree')
-      return null
+      const denied = e instanceof ApiError && e.info.code === 'PERMISSION_DENIED' && api.platform() !== 'win32'
+      if (!denied) notifyError(e, 'Could not remove the worktree')
+      if (!denied || !(await removeWorktreeWithSudo(base, path, 2, e.info.message))) return null
     }
   }
+  return removed(root, path, base)
+}
+
+function removed(root: string, path: string, base: string): string {
   refreshRepo(base)
   refreshRepo(root)
   closeTabsFor(path, base)

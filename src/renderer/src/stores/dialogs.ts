@@ -15,6 +15,12 @@ export interface PromptOptions {
   initial?: string
   placeholder?: string
   confirmLabel?: string
+  /** Text shown above the field (e.g. why a password is needed). */
+  message?: React.ReactNode
+  /** Masked input; the value is not pre-filled or selected. */
+  password?: boolean
+  /** Shown under the field when the dialog opens (e.g. "Wrong password"). */
+  error?: string
   /** Return an error message to block submission. */
   validate?: (value: string) => string | null
 }
